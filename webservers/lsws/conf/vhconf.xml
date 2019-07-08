@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<virtualHostConfig>
+  <docRoot>/var/www/html</docRoot>
+  <enableGzip>1</enableGzip>
+  <logging>
+    <log>
+      <useServer>0</useServer>
+      <fileName>$VH_ROOT/logs/error.log</fileName>
+      <logLevel>DEBUG</logLevel>
+      <rollingSize>10M</rollingSize>
+    </log>
+    <accessLog>
+      <useServer>2</useServer>
+      <fileName>$VH_ROOT/logs/access.log</fileName>
+      <rollingSize>10M</rollingSize>
+      <keepDays>30</keepDays>
+      <compressArchive>0</compressArchive>
+    </accessLog>
+  </logging>
+  <index>
+    <useServer>0</useServer>
+    <indexFiles>index.html, index.php</indexFiles>
+    <autoIndex>0</autoIndex>
+    <autoIndexURI>/_autoindex/default.php</autoIndexURI>
+  </index>
+  <customErrorPages>
+    <errorPage>
+      <errCode>404</errCode>
+      <url>/error404.html</url>
+    </errorPage>
+  </customErrorPages>
+  <htAccess>
+    <allowOverride>31</allowOverride>
+    <accessFileName>.htaccess</accessFileName>
+  </htAccess>
+  <expires>
+    <enableExpires>1</enableExpires>
+  </expires>
+  <security>
+    <hotlinkCtrl>
+      <enableHotlinkCtrl>0</enableHotlinkCtrl>
+      <suffixes>gif,  jpeg,  jpg</suffixes>
+      <allowDirectAccess>1</allowDirectAccess>
+      <onlySelf>1</onlySelf>
+    </hotlinkCtrl>
+    <accessControl>
+      <allow>*</allow>
+    </accessControl>
+    <realmList>
+      <realm>
+        <type>file</type>
+        <name>SampleProtectedArea</name>
+        <userDB>
+          <location>$VH_ROOT/conf/htpasswd</location>
+          <maxCacheSize>200</maxCacheSize>
+          <cacheTimeout>60</cacheTimeout>
+        </userDB>
+        <groupDB>
+          <location>$VH_ROOT/conf/htgroup</location>
+          <maxCacheSize>200</maxCacheSize>
+          <cacheTimeout>60</cacheTimeout>
+        </groupDB>
+      </realm>
+    </realmList>
+  </security>
+  <cache>
+    <storage>
+      <cacheStorePath>/var/www/html/lscache/</cacheStorePath>
+      <litemage>0</litemage>
+    </storage>
+  </cache>
+  <contextList>
+  </contextList>
+  <rewrite>
+    <enable>1</enable>
+    <logLevel>0</logLevel>
+    <rules>RewriteCond %{HTTP_USER_AGENT}  ^NameOfBadRobot
+RewriteRule ^/nospider/         -   [F]</rules>
+  </rewrite>
+  <frontPage>
+    <enable>0</enable>
+    <disableAdmin>0</disableAdmin>
+  </frontPage>
+  <awstats>
+    <updateMode>0</updateMode>
+    <workingDir>$VH_ROOT/awstats</workingDir>
+    <awstatsURI>/awstats/</awstatsURI>
+    <siteDomain>localhost</siteDomain>
+    <siteAliases>127.0.0.1 localhost</siteAliases>
+    <updateInterval>86400</updateInterval>
+    <updateOffset>0</updateOffset>
+  </awstats>
+</virtualHostConfig>
