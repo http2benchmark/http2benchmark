@@ -433,6 +433,17 @@ EOM
     checkweb nginx
 }
 
+ubuntu_install_h2o() {
+    echoG 'Install h2o Web Server'
+    apt install h2o -y >/dev/null 2>&1
+    SERVERV=$(/usr/bin/h2o --version | grep -o 'version [0-9.]*' | grep -o '[0-9.]*')
+    echoG "Version: h2o ${SERVERV}"
+    echo "Version: h2o ${SERVERV}" >> ${SERVERACCESS}
+
+    cp ../../webservers/h2o/h2o.conf /etc/h2o/
+}
+
+
 ubuntu_reinstall(){
     apt --installed list 2>/dev/null | grep ${1} >/dev/null
     if [ $? = 0 ]; then
