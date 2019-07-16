@@ -28,9 +28,37 @@ update_web_version(){
 }
 
 check_cpu(){
-    CPU=$(grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$4+$5)} END {print usage}')
+    local PREV_TOTAL=0
+    local PREV_IDLE=0
+    local PREV_COUNT=0
+    while true; do
+        # Get the total CPU statistics, discarding the 'cpu ' prefix.
+        CPU=($(sed -n 's/^cpu\s//p' /proc/stat))
+        IDLE=${CPU[3]}
+        # Calculate the total CPU time.
+        TOTAL=0
+        for VALUE in "${CPU[@]}"; do
+            let "TOTAL=$TOTAL+$VALUE"
+        done
+        # Calculate the CPU usage since we last checked.
+        let "DIFF_IDLE=$IDLE-$PREV_IDLE"
+        let "DIFF_TOTAL=$TOTAL-$PREV_TOTAL"
+        let "DIFF_USAGE=(1000*($DIFF_TOTAL-$DIFF_IDLE)/$DIFF_TOTAL+5)/10"
+        if [[ ${PREV_COUNT} -ne 0 ]]; then
+            if [[ ${PREV_COUNT} -eq 5 ]]; then
+                break
+            fi
+            if [[ ${DIFF_USAGE} -ge 30 ]]; then
+                ((PREV_COUNT--))
+            fi
+        fi
+        PREV_TOTAL="$TOTAL"
+        PREV_IDLE="$IDLE"
+        ((PREV_COUNT++))
+        sleep .1
+    done
     ### echo in integer
-    echo ${CPU%.*}
+    echo ${DIFF_USAGE%.*}
 }
 
 check_mem(){
