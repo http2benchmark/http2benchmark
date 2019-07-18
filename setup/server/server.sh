@@ -56,7 +56,7 @@ echoR()
     echo -e "\033[38;5;203m${1}\033[39m"
 }
 
-getip(){
+get_ip(){
     if [ -e /sys/devices/virtual/dmi/id/product_uuid ] && [ "$(sudo cat /sys/devices/virtual/dmi/id/product_uuid | cut -c 1-3)" = 'EC2' ]; then
         MYIP=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
     elif [ "$(sudo dmidecode -s bios-vendor)" = 'Google' ]; then
@@ -66,7 +66,7 @@ getip(){
     fi
 }
 
-linechange(){
+line_change(){
     LINENUM=$(grep -v '#' ${2} | grep -n "${1}" | cut -d: -f 1)
     if [ -n "$LINENUM" ] && [ "$LINENUM" -eq "$LINENUM" ] 2>/dev/null; then
         sed -i "${LINENUM}d" ${2}
@@ -74,7 +74,7 @@ linechange(){
     fi  
 }
 
-checksystem(){
+check_system(){
     if [ -f /etc/redhat-release ] ; then
         OSNAME=centos
         USER='apache'
@@ -90,7 +90,7 @@ checksystem(){
         echoR 'Please use CentOS or Ubuntu OS'
     fi      
 }
-checksystem
+check_system
 
 ubuntu_sysupdate(){
     echoG 'System update'
@@ -116,7 +116,7 @@ backup_old(){
 
 
 
-genpwd()
+gen_pwd()
 {
     ADMIN_PASS=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16 ; echo '')
     MYSQL_ROOT_PASS=$(openssl rand -hex 24)
@@ -124,7 +124,7 @@ genpwd()
 }
 
 
-displaypwd(){
+display_pwd(){
     echoY "LSWS_admin_PASS:           ${ADMIN_PASS}"      | tee -a ${SERVERACCESS}
     echoY "WordPress_admin_PASS:      ${ADMIN_PASS}"      | tee -a ${SERVERACCESS}
     echoY "MYSQL_root_PASS:           ${MYSQL_ROOT_PASS}" | tee -a ${SERVERACCESS}
@@ -157,7 +157,7 @@ checkweb(){
     fi 
 }
 
-rmoldpkg(){
+rm_old_pkg(){
     silent systemctl stop ${1}
     if [ ${OSNAME} = 'centos' ]; then     
         silent yum remove ${1} -y 
@@ -190,6 +190,15 @@ ubuntu_install_pkg(){
         [[ -e /usr/sbin/postfix ]] && echoG 'Install postfix Success' || echoR 'Install postfix Failed'
     fi    
 
+### System Packages
+    if [ -e /usr/sbin/dmidecode ]; then
+        echoG 'dmidecode already installed'
+    else
+        echoG 'Install dmidecode'
+        silent apt-get install dmidecode -y
+        [[ -e /usr/sbin/dmidecode ]] && echoG 'Install dmidecode Success' || echoR 'Install dmidecode Failed' 
+    fi 
+
 ### Network Packages
     if [ -e /usr/bin/iperf ]; then 
         echoG 'Iperf already installed'
@@ -198,6 +207,13 @@ ubuntu_install_pkg(){
         silent apt-get install iperf -y
         [[ -e /usr/bin/iperf ]] && echoG 'Install Iperf Success' || echoR 'Install Iperf Failed' 
     fi
+    if [ -e /usr/bin/netstat ]; then
+        echoG 'netstat already installed'
+    else
+        echoG 'Install netstat'
+        silent apt-get install net-tools -y
+        [[ -e /usr/bin/netstat ]] && echoG 'Install netstat Success' || echoR 'Install netstat Failed' 
+    fi    
 ### Mariadb
     apt list --installed 2>/dev/null | grep mariadb-server-${MARIAVER} >/dev/null 2>&1
     if [ ${?} = 0 ]; then 
@@ -205,7 +221,7 @@ ubuntu_install_pkg(){
     else
         if [ -e /etc/mysql/mariadb.cnf ]; then 
             echoY 'Remove old mariadb'
-            rmoldpkg mariadb-server
+            rm_old_pkg mariadb-server
         fi
         echoG "Install Mariadb ${MARIAVER}"
         silent apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
@@ -245,6 +261,14 @@ centos_install_pkg(){
         [[ -e /usr/sbin/postfix ]] && echoG 'Install postfix Success' || echoR 'Install postfix Failed'
     fi    
 
+### System Packages
+    if [ -e /usr/sbin/dmidecode ]; then
+        echoG 'dmidecode already installed'
+    else
+        echoG 'Install dmidecode'
+        silent yum install dmidecode -y
+        [[ -e /usr/sbin/dmidecode ]] && echoG 'Install dmidecode Success' || echoR 'Install dmidecode Failed' 
+    fi  
 ### Network Packages
     if [ -e /usr/bin/iperf ]; then 
         echoG 'Iperf already installed'
@@ -253,6 +277,13 @@ centos_install_pkg(){
         silent yum install iperf -y
         [[ -e /usr/bin/iperf ]] && echoG 'Install Iperf Success' || echoR 'Install Iperf Failed' 
     fi
+    if [ -e /usr/bin/netstat ]; then
+        echoG 'netstat already installed'
+    else
+        echoG 'Install netstat'
+        silent yum install net-tools -y
+        [[ -e /usr/bin/netstat ]] && echoG 'Install netstat Success' || echoR 'Install netstat Failed' 
+    fi     
 ### Mariadb
     silent rpm -qa | grep mariadb-server-${MARIAVER}
 
@@ -261,7 +292,7 @@ centos_install_pkg(){
     else
         if [ -e /etc/mysql/mariadb.cnf ]; then 
             echoY 'Remove old mariadb'
-            rmoldpkg mariadb-server
+            rm_old_pkg mariadb-server
         fi
 
         echoG "InstallMariadb ${MARIAVER}"
@@ -301,7 +332,7 @@ ubuntu_install_apache(){
     echoG 'Install Apache Web Server'
     if [ -e /usr/sbin/${APACHENAME} ]; then 
         echoY "Remove existing old ${APACHENAME}" 
-        rmoldpkg ${APACHENAME}  
+        rm_old_pkg ${APACHENAME}  
     fi    
     yes "" | add-apt-repository ppa:ondrej/apache2 >/dev/null 2>&1
     if [ "$(grep -iR apache2 ${REPOPATH}/)" = '' ]; then 
@@ -320,7 +351,7 @@ centos_install_apache(){
     echoG 'Install Apache Web Server'
     if [ -e /usr/sbin/${APACHENAME} ]; then 
         echoY "Remove existing old ${APACHENAME}" 
-        rmoldpkg ${APACHENAME}  
+        rm_old_pkg ${APACHENAME}  
     fi    
     curl -s 'https://setup.ius.io/' -o ${CMDFD}/setup-ius.sh
     chmod 0755 ${CMDFD}/setup-ius.sh 
@@ -396,7 +427,7 @@ ubuntu_install_nginx(){
     echoG 'Install Nginx Web Server'
     if [ -e /usr/sbin/nginx ]; then 
         echoY "Remove existing old nginx" 
-        rmoldpkg nginx 
+        rm_old_pkg nginx 
     fi     
     echo "deb http://nginx.org/packages/ubuntu `lsb_release -cs` nginx" \
         | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
@@ -415,7 +446,7 @@ centos_install_nginx(){
     echoG 'Install Nginx Web Server'
     if [ -e /usr/sbin/nginx ]; then 
         echoY "Remove existing old nginx" 
-        rmoldpkg nginx 
+        rm_old_pkg nginx 
     fi     
     cat > ${REPOPATH}/nginx.repo << EOM
 [nginx-stable]
@@ -710,8 +741,8 @@ centos_main(){
 main(){
     clean_log_fd
     create_log_fd
-    genpwd
-    getip
+    gen_pwd
+    get_ip
     [[ ${OSNAME} = 'centos' ]] && centos_main || ubuntu_main
     gen_selfsigned_cert
     check_spec
@@ -721,7 +752,7 @@ main(){
     cpuprocess 
     install_target
     change_owner
-    displaypwd
+    display_pwd
     mvexscript '../../tools/switch.sh' "${CMDFD}/"
     mvexscript '../../tools/monitor.sh' "${CMDFD}/"
 }
