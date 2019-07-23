@@ -139,7 +139,10 @@ checkweb(){
         echoG 'Stop web service temporary'
         if [ "${1}" = 'lshttpd' ]; then 
             silent ${LSDIR}/bin/lswsctrl stop
-            kill -9 $(ps aux | grep '[w]swatch.sh' | awk '{print $2}')
+            ps aux | grep '[w]swatch.sh' >/dev/null 2>&1
+            if [ ${?} = 0 ]; then
+                kill -9 $(ps aux | grep '[w]swatch.sh' | awk '{print $2}')
+            fi    
         elif [ "${1}" = 'nginx' ]; then 
             silent service nginx stop
         elif [ "${1}" = 'httpd' ] || [ "${1}" = 'apache2' ]; then
@@ -207,12 +210,12 @@ ubuntu_install_pkg(){
         silent apt-get install iperf -y
         [[ -e /usr/bin/iperf ]] && echoG 'Install Iperf Success' || echoR 'Install Iperf Failed' 
     fi
-    if [ -e /usr/bin/netstat ]; then
+    if [ -e /bin/netstat ]; then
         echoG 'netstat already installed'
     else
         echoG 'Install netstat'
         silent apt-get install net-tools -y
-        [[ -e /usr/bin/netstat ]] && echoG 'Install netstat Success' || echoR 'Install netstat Failed' 
+        [[ -e /bin/netstat ]] && echoG 'Install netstat Success' || echoR 'Install netstat Failed' 
     fi    
 ### Mariadb
     apt list --installed 2>/dev/null | grep mariadb-server-${MARIAVER} >/dev/null 2>&1
