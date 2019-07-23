@@ -379,7 +379,7 @@ install_lsws(){
         rm -rf ${LSDIR}
     fi
     echoG 'Download LiteSpeed Web Server'
-    wget -q https://www.litespeedtech.com/packages/5.0/lsws-5.3.8-ent-x86_64-linux.tar.gz -P ${CMDFD}/
+    wget -q https://www.litespeedtech.com/packages/5.0/lsws-5.4-ent-x86_64-linux.tar.gz -P ${CMDFD}/
     silent tar -zxvf lsws-*-ent-x86_64-linux.tar.gz
     rm -f lsws-*.tar.gz
     cd lsws-*
@@ -403,8 +403,8 @@ install_lsws(){
 
     echoG 'Install LiteSpeed Web Server'
     silent /bin/bash install.sh
-    echoG 'Upgrade to Latest stable release'
-    silent ${LSDIR}/admin/misc/lsup.sh -f
+    #echoG 'Upgrade to Latest stable release'
+    #silent ${LSDIR}/admin/misc/lsup.sh -f
     checkweb lshttpd
     SERVERV=$(cat /usr/local/lsws/VERSION)
     echoG "Version: lsws ${SERVERV}"
