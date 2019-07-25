@@ -13,6 +13,7 @@ TESTSERVERIP=''
 CLIENTTOOL="${CMDFD}/tools"
 CLIENTCF="${CLIENTTOOL}/config"
 SSH=(ssh -o 'StrictHostKeyChecking=no' -i ~/.ssh/${SSHKEYNAME})
+SSH_BATCH=(ssh -o 'BatchMode=yes' -o 'StrictHostKeyChecking=no' -i ~/.ssh/${SSHKEYNAME})
 JMFD='apache-jmeter'
 JMPLAN='jmeter.jmx'
 JMCFPATH="${CLIENTTOOL}/${JMFD}/bin/examples/${JMPLAN}"
@@ -338,7 +339,7 @@ loop_check_ssh(){
 check_ssh(){
 ### Check SSH
     echoG 'Start checking SSH...'   
-    silent "${SSH[@]}" root@${1} "echo 'Test connection'"
+    silent "${SSH_BATCH[@]}" root@${1} "echo 'Test connection'"
     if [ ${?} != 0 ]; then 
         gen_sshkey
         help_message 2
