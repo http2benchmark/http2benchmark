@@ -12,9 +12,9 @@ TARGET_LIST="1kstatic.html 1knogzip.jpg wordpress"
 #TARGET_LIST="1kstatic.html 1knogzip.jpg 10kstatic.html 100kstatic.html wordpress"
 
 CPU_THRESHOLD=30
-### Reduce the interval number if you have > 1 CPU
-INTERVAL=20
-
+### Add Interval to avoid potential traffic block
+INTERVAL=0
+CHECK='ON'
 DATE=$(date +%m%d%y-%H%M%S)
 CMDFD='/opt'
 SSHKEYNAME='http2'
@@ -284,10 +284,8 @@ jmeter_benchmark(){
     target_check ${TESTSERVERIP} ${TARGET} ${MAPPINGLOG} >> ${MAPPINGLOG}
     NEWKEY="          <stringProp name="HTTPSampler.domain">${1}/${2}</stringProp>"
     linechange 'HTTPSampler.domain' ${JMCFPATH} "${NEWKEY}"
-    check_process_cpu ${TESTSERVERIP} ${SERVER} ${CMDFD}/log/${DATE}-${3}-${FILENAME}-CPU-${BENCHMARKLOG_JM}.${4}; sleep ${INTERVAL}
     #echo "Benchmark Command: jmeter.sh ${FILE_CONTENT} \${JMFD}" >> ${MAPPINGLOG}
     ./jmeter.sh ${FILE_CONTENT} "${JMFD}" >> ${MAPPINGLOG}
-    kill_process_cpu ${TESTSERVERIP}
     cd ~
 }
 wrk_benchmark(){
@@ -319,7 +317,7 @@ kill_process_cpu(){
 loop_check_server_cpu(){
     while :; do
         check_server_cpu ${TESTSERVERIP} CPU
-        if [ ${TESTSERVERCPU} -ge ${CPU_THRESHOLD} ]; then
+        if [[ ${TESTSERVERCPU} -ge ${CPU_THRESHOLD} ]]; then
             echoY "Test server: CPU ${TESTSERVERCPU}% is high, please wait.."
             sleep 30
         else
@@ -331,8 +329,10 @@ loop_check_server_cpu(){
 main_test(){
     START_TIME="$(date -u +%s)"
     validate_tool
+    sleep ${INTERVAL}
     kill_process_cpu ${TESTSERVERIP}
     for SERVER in ${SERVER_LIST}; do
+        sleep ${INTERVAL}
         server_switch ${TESTSERVERIP} ${SERVER}
         get_server_version ${SERVER}
         rdlastfield ${SERVER} "${CLIENTCF}/urls.conf"
@@ -346,30 +346,42 @@ main_test(){
                     TARGET=${WEB_ARR["${SERVER}"]}
                 fi
                 echoY "      |--- https://${TARGET_DOMAIN}/${TARGET}"
-                loop_check_server_cpu
+                if [ ${CHECK} = 'ON' ]; then
+                    sleep ${INTERVAL}
+                    loop_check_server_cpu
+                fi
                 noext_target ${TARGET}
+                sleep ${INTERVAL}
                 validate_server ${TARGET_DOMAIN} ${TARGET}
                 if [ ${?} = 0 ] && [ "${STATUS}" = '200' ]; then
-
-                    check_process_cpu ${TESTSERVERIP} ${SERVER} ${CMDFD}/log/${DATE}-${SERVER}-${FILENAME}-CPU-${TOOL};
+                    if [ ${CHECK} = 'ON' ]; then
+                        sleep ${INTERVAL}
+                        check_process_cpu ${TESTSERVERIP} ${SERVER} ${CMDFD}/log/${DATE}-${SERVER}-${FILENAME}-CPU-${TOOL};
+                    fi    
                     sleep 1
                     for ((ROUND = 1; ROUND<=$ROUNDNUM; ROUND++)); do
                         echoY "          |--- ${ROUND} / ${ROUNDNUM}"
-                        #loop_check_server_cpu
                         if [ ${TOOL} = 'siege' ] && [ "${RUNSIEGE}" = 'true' ]; then
+                            sleep ${INTERVAL}
                             siege_benchmark ${TARGET_DOMAIN} ${TARGET} ${SERVER} ${ROUND}
                         fi
                         if [ ${TOOL} = 'h2load' ] && [ "${RUNH2LOAD}" = 'true' ]; then
+                            sleep ${INTERVAL}
                             h2load_benchmark  ${TARGET_DOMAIN} ${TARGET} ${SERVER} ${ROUND}
                         fi
                         if [ ${TOOL} = 'jmeter' ] && [ "${RUNJMETER}" = 'true' ]; then
+                            sleep ${INTERVAL}
                             jmeter_benchmark ${TARGET_DOMAIN} ${TARGET} ${SERVER} ${ROUND}
                         fi
                         if [ ${TOOL} = 'wrk' ] && [ "${RUNWRK}" = 'true' ]; then
+                            sleep ${INTERVAL}
                             wrk_benchmark ${TARGET_DOMAIN} ${TARGET} ${SERVER} ${ROUND}
                         fi
                     done
-                    kill_process_cpu ${TESTSERVERIP}
+                    if [ ${CHECK} = 'ON' ]; then
+                        sleep ${INTERVAL}
+                        kill_process_cpu ${TESTSERVERIP}
+                    fi    
                 else
                     echoR "[FAILED] to retrive target, Skip ${SERVER} testing"
                 fi
@@ -541,7 +553,9 @@ main(){
     help_message 3
     main_test
     parse_log
-    gather_serverlog log
+    if [ ${CHECK} = 'ON' ]; then
+        gather_serverlog log
+    fi    
     archive_log ${BENDATE} ${RESULT_NAME}
     help_message 2
     kill $KILL_PROCESS_LIST > /dev/null 2>&1
@@ -554,6 +568,12 @@ while [ ! -z "${1}" ]; do
             ;;
         -r | -R | --round) shift
             checkroundin ${1}
+            ;;
+        -i | -I | --interval) shift
+            INTERVAL=${1}
+            ;;
+        --no-check)
+            CHECK='OFF'
             ;;
         *) echo
             'Not support'
