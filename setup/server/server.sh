@@ -356,7 +356,7 @@ centos_install_apache(){
         echoY "Remove existing old ${APACHENAME}" 
         rm_old_pkg ${APACHENAME}  
     fi    
-    curl -s 'https://setup.ius.io/' -o ${CMDFD}/setup-ius.sh
+    curl -s 'https://setup.ius.io/' -o ${CMDFD}/setup-ius.sh 
     chmod 0755 ${CMDFD}/setup-ius.sh 
     silent bash ${CMDFD}/setup-ius.sh 
     rm -f ${CMDFD}/setup-ius.sh 
@@ -367,7 +367,7 @@ centos_install_apache(){
     silent yum install ${HTTPDNAME} -y
     silent systemctl start ${APACHENAME}
     SERVERV=$(echo $(httpd -v | grep version) | awk '{print substr ($3,8,9)}')
-    /usr/bin/yum-config-manager --disable ius
+    /usr/bin/yum-config-manager --disable ius >/dev/null 2>&1
     checkweb ${APACHENAME}
     echoG "Version: apache ${SERVERV}"
     echo "Version: apache ${SERVERV}" >> ${SERVERACCESS}
@@ -561,7 +561,7 @@ install_target(){
             ### Update user password
             mysql -u root -p${MYSQL_ROOT_PASS} << EOC
 CREATE DATABASE ${WP_NAME};
-grant all on ${WP_NAME}.* to 'wordpress' identified by '${MYSQL_USER_PASS}';
+grant all privileges on ${WP_NAME}.* to 'wordpress'@'localhost' identified by '${MYSQL_USER_PASS}';
 EOC
             ### Install WordPress via WP CLI
             echoG 'Install WordPress via CLI'
@@ -680,21 +680,25 @@ change_owner(){
 
 ### Config Apache
 setup_apache(){
-    echoG 'Setting Apache Config'
-    cd ${SCRIPTPATH}/
-    a2enmod proxy_fcgi >/dev/null 2>&1
-    a2enconf php7.2-fpm >/dev/null 2>&1
-    a2enmod mpm_event >/dev/null 2>&1
-    a2enmod ssl >/dev/null 2>&1
-    a2enmod http2 >/dev/null 2>&1
-    cp ../../webservers/apache/conf/deflate.conf ${APADIR}/mods-available
-    cp ../../webservers/apache/conf/default-ssl.conf ${APADIR}/sites-available
-    if [ ! -e ${APADIR}/sites-enabled/000-default-ssl.conf ]; then
-        ln -s ${APADIR}/sites-available/default-ssl.conf ${APADIR}/sites-enabled/000-default-ssl.conf
-    fi
-    if [ ! -e ${APADIR}/conf-enabled/php7.2-fpm.conf ]; then 
-        ln -s ${APADIR}/conf-available/php7.2-fpm.conf ${APADIR}/conf-enabled/php7.2-fpm.conf 
-    fi
+    if [ ${OSNAME} = 'centos' ]; then
+        echo "Apache config not support on CentOS yet!"
+    else    
+        echoG 'Setting Apache Config'
+        cd ${SCRIPTPATH}/
+        a2enmod proxy_fcgi >/dev/null 2>&1
+        a2enconf php7.2-fpm >/dev/null 2>&1
+        a2enmod mpm_event >/dev/null 2>&1
+        a2enmod ssl >/dev/null 2>&1
+        a2enmod http2 >/dev/null 2>&1
+        cp ../../webservers/apache/conf/deflate.conf ${APADIR}/mods-available
+        cp ../../webservers/apache/conf/default-ssl.conf ${APADIR}/sites-available
+        if [ ! -e ${APADIR}/sites-enabled/000-default-ssl.conf ]; then
+            ln -s ${APADIR}/sites-available/default-ssl.conf ${APADIR}/sites-enabled/000-default-ssl.conf
+        fi
+        if [ ! -e ${APADIR}/conf-enabled/php7.2-fpm.conf ]; then 
+            ln -s ${APADIR}/conf-available/php7.2-fpm.conf ${APADIR}/conf-enabled/php7.2-fpm.conf 
+        fi
+    fi    
 }
 ### Config LSWS
 setup_lsws(){
@@ -704,6 +708,10 @@ setup_lsws(){
     backup_old ${LSDIR}/DEFAULT/conf/vhconf.xml
     cp ../../webservers/lsws/conf/httpd_config.xml ${LSDIR}/conf/
     cp ../../webservers/lsws/conf/vhconf.xml ${LSDIR}/DEFAULT/conf/
+    if [ ${OSNAME} = 'centos' ]; then
+        sed -i "s/www-data/${USER}/g" ${LSDIR}/conf/httpd_config.xml
+        sed -i "s|/usr/local/lsws/lsphp72/bin/lsphp|/usr/bin/lsphp|g" ${LSDIR}/conf/httpd_config.xml
+    fi    
 }    
 ### Config Nginx
 setup_nginx(){
