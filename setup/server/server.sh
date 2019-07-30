@@ -11,6 +11,7 @@ DOCROOT='/var/www/html'
 NGDIR='/etc/nginx'
 APADIR='/etc/apache2'
 LSDIR='/usr/local/lsws'
+FPMCONF='/etc/php-fpm.d/www.conf'
 USER='www-data'
 GROUP='www-data'
 CERTDIR='/etc/ssl'
@@ -509,11 +510,11 @@ ubuntu_install_php(){
     sed -i -e 's/extension=shmop.so/;extension=shmop.so/' /etc/php/7.2/fpm/conf.d/20-shmop.ini
     sed -i -e 's/extension=wddx.so/;extension=wddx.so/' /etc/php/7.2/fpm/conf.d/20-wddx.ini
 
-  #TODO: FETCH SAME PHP INI FOR BOTH UBUNTU + CENTOS
+    #TODO: FETCH SAME PHP INI
 }
 
 centos_install_php(){
-  echoG 'Install PHP & Packages'  
+    echoG 'Install PHP & Packages'  
     /usr/bin/yum install -y http://rpms.remirepo.net/enterprise/remi-release-7.rpm >/dev/null 2>&1
     /usr/bin/yum-config-manager --enable remi-php72 >/dev/null 2>&1
     /usr/bin/yum install -y php-common php-pdo php-gd php-mbstring php-mysqlnd php-litespeed php-opcache php-pecl-zip php-tidy php-gmp \
@@ -524,8 +525,16 @@ centos_install_php(){
     sed -i -e 's/extension=pdo_sqlite/;extension=pdo_sqlite/' /etc/php.d/30-pdo_sqlite.ini
     sed -i -e 's/extension=shmop/;extension=shmop/' /etc/php.d/20-shmop.ini
     sed -i -e 's/extension=sqlite3/;extension=sqlite3/' /etc/php.d/20-sqlite3.ini
-    sed -i -e 's/extension=wddx/;extension=wddx/' /etc/php.d/30-wddx.ini
-  #TODO: FETCH SAME PHP INI FOR BOTH UBUNTU + CENTOS    
+    sed -i -e 's/extension=wddx/;extension=wddx/' /etc/php.d/30-wddx.ini  
+
+    NEWKEY="listen.owner = ${USER}"
+    line_change 'listen.owner = ' ${FPMCONF} "${NEWKEY}"
+    NEWKEY="listen.group = ${GROUP}"
+    line_change 'listen.group = ' ${FPMCONF} "${NEWKEY}"
+    NEWKEY='listen.mode = 0660'
+    line_change 'listen.mode = ' ${FPMCONF} "${NEWKEY}"  
+    
+    #TODO: FETCH SAME PHP INI       
 }    
 
 ### Setup Test site
