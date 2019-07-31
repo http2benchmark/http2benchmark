@@ -526,14 +526,17 @@ centos_install_php(){
     sed -i -e 's/extension=shmop/;extension=shmop/' /etc/php.d/20-shmop.ini
     sed -i -e 's/extension=sqlite3/;extension=sqlite3/' /etc/php.d/20-sqlite3.ini
     sed -i -e 's/extension=wddx/;extension=wddx/' /etc/php.d/30-wddx.ini  
-
+    
+    mkdir -p /var/run/php/
+    NEWKEY='listen = /var/run/php/php7.2-fpm.sock'
+    line_change 'listen = ' ${FPMCONF} "${NEWKEY}"    
     NEWKEY="listen.owner = ${USER}"
     line_change 'listen.owner = ' ${FPMCONF} "${NEWKEY}"
     NEWKEY="listen.group = ${GROUP}"
     line_change 'listen.group = ' ${FPMCONF} "${NEWKEY}"
     NEWKEY='listen.mode = 0660'
     line_change 'listen.mode = ' ${FPMCONF} "${NEWKEY}"  
-    
+
     #TODO: FETCH SAME PHP INI       
 }    
 

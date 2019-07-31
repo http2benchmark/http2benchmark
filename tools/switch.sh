@@ -55,7 +55,7 @@ server_stop()
     #echoG 'Stopping web servers...'
     silent systemctl stop nginx 
     silent systemctl stop ${APACHENAME} 
-    silent systemctl stop php7.2-fpm 
+    silent systemctl stop php7.2-fpm php-fpm
     silent ${LSDIR}/bin/lswsctrl stop
     WSWATCH=$(ps aux | grep '[w]swatch.sh' | awk '{print $2}')
     if [ "${WSWATCH}" != '' ]; then 
@@ -114,14 +114,18 @@ server_switch(){
     
     if [[ ${1} =~ (ap|AP) ]] || [[ ${1} =~ (ht|HT) ]]; then
 	    if [ ${OSNAME} = 'centos' ]; then 
-            SERVER_NAME='httpd'
+            SERVER_NAME='php-fpm httpd'
         else 
             SERVER_NAME='php7.2-fpm apache2'
         fi
     elif [[ ${1} =~ ^(ls|LS) ]]; then
         SERVER_NAME='lsws'
     elif [[ ${1} =~ ^(ng|NG) ]]; then  
-        SERVER_NAME='php7.2-fpm nginx'
+        if [ ${OSNAME} = 'centos' ]; then
+            SERVER_NAME='php-fpm nginx'
+        else    
+            SERVER_NAME='php7.2-fpm nginx'
+        fi    
     else 
     	echoR 'Please input apache, lsws or nginx'
     fi	
