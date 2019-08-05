@@ -252,8 +252,16 @@ centos_install_pkg(){
     if [ ! -e /bin/wget ]; then 
         silent yum install epel-release -y
         silent yum update -y
-        silent yum install curl wget -y
+        silent yum install curl yum-utils wget -y
+    fi
+    if [[ -z "$(rpm -qa epel-release)" ]]; then
+        silent yum install epel-release -y
+    fi
+    if [ ! -e /usr/bin/yum-config-manager ]; then 
         silent yum install yum-utils -y
+    fi
+    if [ ! -e /usr/bin/curl ]; then 
+        silent yum install curl -y
     fi
 
 ### Install postfix
