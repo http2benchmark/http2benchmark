@@ -516,6 +516,7 @@ ubuntu_install_php(){
 centos_install_php(){
     echoG 'Install PHP & Packages'  
     /usr/bin/yum install -y http://rpms.remirepo.net/enterprise/remi-release-7.rpm >/dev/null 2>&1
+    /usr/bin/yum install -y yum-utils >/dev/null 2>&1
     /usr/bin/yum-config-manager --enable remi-php72 >/dev/null 2>&1
     /usr/bin/yum install -y php-common php-pdo php-gd php-mbstring php-mysqlnd php-litespeed php-opcache php-pecl-zip php-tidy php-gmp \
                    php-bcmath php-enchant php-cli php-json php-xml php php-fpm php-recode php-soap php-xmlrpc php-sodium \
