@@ -363,7 +363,7 @@ centos_install_apache(){
     fi
     HTTPDNAME=$(yum list httpd*u | awk -F '.' '/httpd./{print $1}')
     silent yum install ${HTTPDNAME} -y
-	silent yum install mod_ssl mod_fcgi -y
+    silent yum install mod_ssl mod_fcgi -y
     silent systemctl start ${APACHENAME}
     SERVERV=$(echo $(httpd -v | grep version) | awk '{print substr ($3,8,9)}')
     /usr/bin/yum-config-manager --disable codeit >/dev/null 2>&1
@@ -691,8 +691,14 @@ change_owner(){
 ### Config Apache
 setup_apache(){
     if [ ${OSNAME} = 'centos' ]; then
-        echo "Apache config not support on CentOS yet!"
-    else    
+        echoG "Setting Apache Config"
+	echo "LoadModule http2_module modules/mod_http2.so" >> /etc/httpd/conf.modules.d/http2.conf >/dev/null 2>&1
+	echo "LoadModule ssl_module modules/mod_ssl.so" >> /etc/httpd/conf.modules.d/ssl.conf >/dev/null 2>&1
+	echo "Protocols h2 http/1.1" >> /etc/httpd/conf/httpd.conf >/dev/null 2>&1
+	sed -i '/LoadModule mpm_prefork_module/s/^/#/g' /etc/httpd/conf.modules.d/00-mpm.conf >/dev/null 2>&1
+	sed -i '/LoadModule mpm_event_module/s/^#//g' /etc/httpd/conf.modules.d/00-mpm.conf >/dev/null 2>&1
+	sed -i 's+SetHandler application/x-httpd-php+SetHandler proxy:unix:/var/run/php/php7.2-fpm.sock|fcgi://localhost+g' /etc/httpd/conf.d/php.conf >/dev/null 2>&1
+    else
         echoG 'Setting Apache Config'
         cd ${SCRIPTPATH}/
         a2enmod proxy_fcgi >/dev/null 2>&1
