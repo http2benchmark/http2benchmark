@@ -3,7 +3,8 @@
 # HTTP2 Benchmark switch Script
 # *********************************************************************/
 CMDFD='/opt'
-LSDIR='/usr/local/lsws'
+LSDIR='/usr/local/entlsws'
+OLSDIR='/usr/local/lsws'
 DOCROOT='/var/www/html'
 SERVER_NAME=''
 SERVER_LIST="apache lsws nginx"
@@ -57,6 +58,7 @@ server_stop()
     silent systemctl stop ${APACHENAME} 
     silent systemctl stop php7.2-fpm php-fpm
     silent ${LSDIR}/bin/lswsctrl stop
+    silent ${OLSDIR}/bin/lswsctrl stop
     WSWATCH=$(ps aux | grep '[w]swatch.sh' | awk '{print $2}')
     if [ "${WSWATCH}" != '' ]; then 
         kill -9 "${WSWATCH}"
@@ -120,6 +122,8 @@ server_switch(){
         fi
     elif [[ ${1} =~ ^(ls|LS) ]]; then
         SERVER_NAME='lsws'
+    elif [[ ${1} =~ ^(ols|OLS) ]]; then
+        SERVER_NAME='ols'    
     elif [[ ${1} =~ ^(ng|NG) ]]; then  
         if [ ${OSNAME} = 'centos' ]; then
             SERVER_NAME='php-fpm nginx'
@@ -127,13 +131,22 @@ server_switch(){
             SERVER_NAME='php7.2-fpm nginx'
         fi    
     else 
-    	echoR 'Please input apache, lsws or nginx'
+    	echoR 'Please input apache, lsws, ols or nginx'
     fi	
     echoNG "Switching to ${SERVER_NAME}..  "
-    silent systemctl start ${SERVER_NAME}
-    sleep 5
-    STATUS=$(systemctl is-active ${SERVER_NAME})
-    if [ "$(echo ${STATUS} | grep 'failed')" != 'failed' ]; then
+    if [ "${SERVER_NAME}" = 'lsws' ]; then 
+        silent ${LSDIR}/bin/lswsctrl start; sleep 5
+        ps aux | grep openlitespeed | grep -v grep >/dev/null 2>&1
+        [[ ${?} = 0 ]] && STATUS='active' || STATUS='inactive'
+    elif [ "${SERVER_NAME}" = 'ols' ]; then
+        silent ${OLSDIR}/bin/lswsctrl start; sleep 5
+        ps aux | grep litespeed | grep -v grep >/dev/null 2>&1
+        [[ ${?} = 0 ]] && STATUS='active' || STATUS='inactive'
+    else
+        silent systemctl start ${SERVER_NAME}; sleep 5
+        STATUS=$(systemctl is-active ${SERVER_NAME})
+    fi         
+    if [ "$(echo ${STATUS} | grep 'failed')" != 'failed' ] || [ "$(echo ${STATUS} | grep 'inactive')" != 'inactive' ]; then
         echoG "[OK] ${SERVER_NAME}"
     else
         echoR "[Failed] to start ${SERVER_NAME}"
@@ -141,7 +154,7 @@ server_switch(){
 }
 
 case ${1} in
-    apache | lsws | nginx ) server_switch ${1} ;;
+    apache | lsws | nginx | ols ) server_switch ${1} ;;
     custom_wpdomain ) custom_wpdomain ${2};;
-    *) echo 'Please input apache, lsws, nginx' ;;
+    *) echo 'Please input apache, lsws, nginx, ols' ;;
 esac    

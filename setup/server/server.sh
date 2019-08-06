@@ -10,7 +10,8 @@ SERVERACCESS="${ENVFD}/serveraccess.txt"
 DOCROOT='/var/www/html'
 NGDIR='/etc/nginx'
 APADIR='/etc/apache2'
-LSDIR='/usr/local/lsws'
+LSDIR='/usr/local/entlsws'
+OLSDIR='/usr/local/lsws'
 FPMCONF='/etc/php-fpm.d/www.conf'
 USER='www-data'
 GROUP='www-data'
@@ -115,15 +116,12 @@ backup_old(){
     fi
 }
 
-
-
 gen_pwd()
 {
     ADMIN_PASS=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16 ; echo '')
     MYSQL_ROOT_PASS=$(openssl rand -hex 24)
     MYSQL_USER_PASS=$(openssl rand -hex 24)
 }
-
 
 display_pwd(){
     echoY "LSWS_admin_PASS:           ${ADMIN_PASS}"      | tee -a ${SERVERACCESS}
@@ -134,30 +132,43 @@ display_pwd(){
 }
 
 checkweb(){
-    ps -ef | grep ${1} | grep -v grep >/dev/null 2>&1
-    if [ $? = 0 ]; then 
+    if [ ${1} = 'lsws' ] || [ ${1} = 'ols' ]; then
+        ps -ef | grep lshttpd | grep -v grep >/dev/null 2>&1
+    else
+        ps -ef | grep "${1}" | grep -v grep >/dev/null 2>&1
+    fi    
+    if [ ${?} = 0 ]; then 
         echoG "${1} process is running!"
         echoG 'Stop web service temporary'
-        if [ "${1}" = 'lshttpd' ]; then 
+        if [ "${1}" = 'lsws' ]; then 
+           PROC_NAME='lshttpd'
             silent ${LSDIR}/bin/lswsctrl stop
             ps aux | grep '[w]swatch.sh' >/dev/null 2>&1
             if [ ${?} = 0 ]; then
                 kill -9 $(ps aux | grep '[w]swatch.sh' | awk '{print $2}')
             fi    
+        elif [ "${1}" = 'ols' ]; then 
+            PROC_NAME='lshttpd'
+            silent ${OLSDIR}/bin/lswsctrl stop  
         elif [ "${1}" = 'nginx' ]; then 
-            silent service nginx stop
-        elif [ "${1}" = 'httpd' ] || [ "${1}" = 'apache2' ]; then
-            silent systemctl stop ${APACHENAME}        
+            PROC_NAME='nginx'
+            silent service ${PROC_NAME} stop
+        elif [ "${1}" = 'httpd' ]; then
+            PROC_NAME='httpd'
+            silent systemctl stop ${PROC_NAME}
+        elif [ "${1}" = 'apache2' ]; then
+            PROC_NAME='apache2' 
+            silent systemctl stop ${PROC_NAME}
         fi
         sleep 5
-        if [ $(systemctl is-active ${1}) != 'active' ]; then 
-            echoG "[OK] Stop ${1} service"
+        if [ $(systemctl is-active ${PROC_NAME}) != 'active' ]; then 
+            echoG "[OK] Stop ${PROC_NAME} service"
         else 
-            echoR "[Failed] Stop ${1} service"
+            echoR "[Failed] Stop ${PROC_NAME} service"
         fi 
     else 
         echoR '[ERROR] Failed to start the web server.'
-        ps -ef | grep ${1} | grep -v grep
+        ps -ef | grep ${PROC_NAME} | grep -v grep
     fi 
 }
 
@@ -174,7 +185,6 @@ rm_old_pkg(){
         echoR "[Failed] remove ${1}"
     fi             
 }
-
 
 ubuntu_install_pkg(){
 ### Basic Packages
@@ -376,7 +386,7 @@ centos_install_apache(){
 ### Install LSWS
 install_lsws(){
     cd ${CMDFD}/
-    if [ -e ${CMDFD}/lsws* ] || [ -d /usr/local/lsws ]; then
+    if [ -e ${CMDFD}/lsws* ] || [ -d /usr/local/entlsws ]; then
         echoY 'Remove old LSWS'
         silent systemctl stop lsws
         rm -rf ${CMDFD}/lsws*
@@ -392,6 +402,7 @@ install_lsws(){
     sed -i 's/read TMPS/TMPS=0/g' install.sh
     sed -i 's/read TMP_YN/TMP_YN=N/g' install.sh
     sed -i '/read [A-Z]/d' functions.sh
+    sed -i 's|DEST_RECOM="/usr/local/lsws"|DEST_RECOM="/usr/local/entlsws"|g' functions.sh
     sed -i 's/HTTP_PORT=$TMP_PORT/HTTP_PORT=443/g' functions.sh
     sed -i 's/ADMIN_PORT=$TMP_PORT/ADMIN_PORT=7080/g' functions.sh
     sed -i "/^license()/i\
@@ -409,8 +420,9 @@ install_lsws(){
     silent /bin/bash install.sh
     #echoG 'Upgrade to Latest stable release'
     #silent ${LSDIR}/admin/misc/lsup.sh -f
-    checkweb lshttpd
-    SERVERV=$(cat /usr/local/lsws/VERSION)
+    silent ${LSDIR}/bin/lswsctrl start
+    checkweb lsws
+    SERVERV=$(cat /usr/local/entlsws/VERSION)
     echoG "Version: lsws ${SERVERV}"
     echo "Version: lsws ${SERVERV}" >> ${SERVERACCESS} 
     rm -rf ${CMDFD}/lsws-*
@@ -425,6 +437,27 @@ centos_install_lsws(){
     install_lsws
 }
 
+### Install OpenLiteSpeed
+ubuntu_install_ols(){
+    echoG 'Install openLiteSpeed Web Server'
+    ubuntu_reinstall 'openlitespeed'
+    wget -q -O - http://rpms.litespeedtech.com/debian/enable_lst_debian_repo.sh | bash >/dev/null 2>&1
+    /usr/bin/apt ${OPTIONAL} install openlitespeed -y >/dev/null 2>&1
+    SERVERV=$(cat /usr/local/lsws/VERSION)
+    echoG "Version: ols ${SERVERV}"
+    echo "Version: ols ${SERVERV}" >> ${SERVERACCESS}     
+}
+
+centos_install_ols(){
+    echoG 'Install openLiteSpeed Web Server'
+    centos_reinstall 'openlitespeed'
+    silent rpm -Uvh http://rpms.litespeedtech.com/centos/litespeed-repo-1.1-1.el7.noarch.rpm
+    silent /usr/bin/yum ${OPTIONAL} openlitespeed -y
+    checkweb ols
+    SERVERV=$(cat /usr/local/lsws/VERSION)
+    echoG "Version: ols ${SERVERV}"
+    echo "Version: ols ${SERVERV}" >> ${SERVERACCESS}    
+}
 
 ### Install Nginx
 ubuntu_install_nginx(){
@@ -481,10 +514,19 @@ ubuntu_install_h2o() {
 
 ubuntu_reinstall(){
     apt --installed list 2>/dev/null | grep ${1} >/dev/null
-    if [ $? = 0 ]; then
+    if [ ${?} = 0 ]; then
         OPTIONAL='--reinstall'
     else
         OPTIONAL=''
+    fi  
+}
+
+centos_reinstall(){
+    rpm -qa | grep ${1} >/dev/null
+    if [ ${?} = 0 ]; then
+        OPTIONAL='reinstall'
+    else
+        OPTIONAL='install'
     fi  
 }
 ### Install PHP and Modules
@@ -681,10 +723,11 @@ cpuprocess(){
         sed -i 's/<reusePort>0<\/reusePort>/<reusePort>1<\/reusePort>/g' ${LSDIR}/conf/httpd_config.xml
         ### Nginx workers      
         sed -i 's/worker_processes  1;/worker_processes  2;/g' ${NGDIR}/nginx.conf
+        ### OLS
+        sed -i 's/<binding>1<\/binding>/<binding>2<\/binding>/g' ${OLSDIR}/conf/httpd_config.xml
         
     fi
 }
-
 
 change_owner(){
     chown -R ${USER}:${GROUP} ${DOCROOT}
@@ -724,7 +767,8 @@ setup_lsws(){
         sed -i "s/www-data/${USER}/g" ${LSDIR}/conf/httpd_config.xml
         sed -i "s|/usr/local/lsws/lsphp72/bin/lsphp|/usr/bin/lsphp|g" ${LSDIR}/conf/httpd_config.xml
     fi    
-}    
+} 
+
 ### Config Nginx
 setup_nginx(){
     echoG 'Setting Nginx Config' 
@@ -735,6 +779,20 @@ setup_nginx(){
     cp ../../webservers/nginx/conf/default.conf ${NGDIR}/conf.d/
     sed -i "s/user apache/user ${USER}/g"  ${NGDIR}/nginx.conf
 }
+
+### Config OLS
+setup_ols(){
+    echoG 'Setting OpenLiteSpeed Config'
+    cd ${SCRIPTPATH}/
+    backup_old ${OLSDIR}/conf/httpd_config.conf
+    backup_old ${OLSDIR}/Example/conf/vhconf.conf
+    cp ../../webservers/ols/conf/httpd_config.conf ${OLSDIR}/conf/
+    cp ../../webservers/ols/conf/vhconf.conf ${OLSDIR}/conf/vhosts/Example/
+    if [ ${OSNAME} = 'centos' ]; then
+        sed -i "s/www-data/${USER}/g" ${OLSDIR}/conf/httpd_config.conf
+        sed -i "s|/usr/local/lsws/lsphp72/bin/lsphp|/usr/bin/lsphp|g" ${OLSDIR}/conf/httpd_config.conf
+    fi    
+} 
 
 mvexscript(){
     cd ${SCRIPTPATH}/
@@ -749,6 +807,7 @@ ubuntu_main(){
     ubuntu_install_apache
     ubuntu_install_lsws
     ubuntu_install_nginx
+    ubuntu_install_ols
     ubuntu_install_php
 }
 
@@ -758,6 +817,7 @@ centos_main(){
     centos_install_apache
     centos_install_lsws
     centos_install_nginx
+    centos_install_ols
     centos_install_php
 }
 
@@ -772,6 +832,7 @@ main(){
     setup_apache
     setup_lsws
     setup_nginx
+    setup_ols
     cpuprocess 
     install_target
     change_owner

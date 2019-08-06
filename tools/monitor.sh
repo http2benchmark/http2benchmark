@@ -13,12 +13,14 @@ update_web_version(){
     elif [ "${1}" = 'httpd' ]; then   
         SERVERV="$(echo $(httpd -v | grep version) | awk '{print substr ($3,8,9)}')"
     elif [ "${1}" = 'lsws' ]; then 
-        SERVERV="$(cat /usr/local/lsws/VERSION)"
+        SERVERV="$(cat /usr/local/entlsws/VERSION)"
+    elif [ "${1}" = 'ols' ]; then 
+        SERVERV="$(cat /usr/local/lsws/VERSION)"        
     elif [ "${1}" = 'nginx' ]; then 
         SERVERV=$(echo $(/usr/sbin/nginx -v 2>&1) 2>&1)
         SERVERV="$(echo ${SERVERV} | grep -o '[0-9.]*')"
     else
-        SERVER='N/A'    
+        SERVERV='N/A'    
     fi    
     FILEVERSION="$(grep ${1} ${2} | awk '{print $NF}')"
     if [ "${SERVERV}" != "${FILEVERSION}" ]; then
