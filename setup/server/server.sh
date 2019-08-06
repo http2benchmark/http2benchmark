@@ -534,7 +534,7 @@ centos_install_php(){
     line_change 'listen.group = ' ${FPMCONF} "${NEWKEY}"
     NEWKEY='listen.mode = 0660'
     line_change 'listen.mode = ' ${FPMCONF} "${NEWKEY}"  
-
+    service php-fpm restart
     #TODO: FETCH SAME PHP INI       
 }    
 
@@ -691,14 +691,15 @@ change_owner(){
 ### Config Apache
 setup_apache(){
     if [ ${OSNAME} = 'centos' ]; then
-        echoG "Setting Apache Config"
-	echo "LoadModule http2_module modules/mod_http2.so" >> /etc/httpd/conf.modules.d/http2.conf >/dev/null 2>&1
-	echo "LoadModule ssl_module modules/mod_ssl.so" >> /etc/httpd/conf.modules.d/ssl.conf >/dev/null 2>&1
-	echo "Protocols h2 http/1.1" >> /etc/httpd/conf/httpd.conf >/dev/null 2>&1
-	sed -i '/LoadModule mpm_prefork_module/s/^/#/g' /etc/httpd/conf.modules.d/00-mpm.conf >/dev/null 2>&1
-	sed -i '/LoadModule mpm_event_module/s/^#//g' /etc/httpd/conf.modules.d/00-mpm.conf >/dev/null 2>&1
-	sed -i 's+SetHandler application/x-httpd-php+SetHandler proxy:unix:/var/run/php/php7.2-fpm.sock|fcgi://localhost+g' /etc/httpd/conf.d/php.conf >/dev/null 2>&1
-    else
+        echoG 'Setting Apache Config'
+        echo "Protocols h2 http/1.1" >> /etc/httpd/conf/httpd.conf
+        sed -i '/LoadModule mpm_prefork_module/s/^/#/g' /etc/httpd/conf.modules.d/00-mpm.conf
+        sed -i '/LoadModule mpm_event_module/s/^#//g' /etc/httpd/conf.modules.d/00-mpm.conf
+        sed -i 's+SetHandler application/x-httpd-php+SetHandler proxy:unix:/var/run/php/php7.2-fpm.sock|fcgi://localhost+g' /etc/httpd/conf.d/php.conf
+        cp ../../webservers/apache/conf/deflate.conf ${APADIR}/conf.d
+        cp ../../webservers/apache/conf/default-ssl.conf ${APADIR}/conf.d
+        sed -i '/ErrorLog/s/^/#/g' /etc/httpd/conf.d/default-ssl.conf
+     else
         echoG 'Setting Apache Config'
         cd ${SCRIPTPATH}/
         a2enmod proxy_fcgi >/dev/null 2>&1
