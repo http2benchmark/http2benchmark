@@ -340,7 +340,7 @@ check_ssh(){
 ### Check SSH
     echoG 'Start checking SSH...'   
     silent "${SSH_BATCH[@]}" root@${1} "echo 'Test connection'"
-    if [ ${?} != 0 ]; then 
+    if [[ ${?} != 0 || ! -f ~/.ssh/http2.pub ]]; then 
         gen_sshkey
         help_message 2
         echoG 'Once complete, click ANY key to continue: '
