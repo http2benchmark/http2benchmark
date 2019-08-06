@@ -692,6 +692,7 @@ change_owner(){
 setup_apache(){
     if [ ${OSNAME} = 'centos' ]; then
         echoG 'Setting Apache Config'
+        cd ${SCRIPTPATH}/
         echo "Protocols h2 http/1.1" >> /etc/httpd/conf/httpd.conf
         sed -i '/LoadModule mpm_prefork_module/s/^/#/g' /etc/httpd/conf.modules.d/00-mpm.conf
         sed -i '/LoadModule mpm_event_module/s/^#//g' /etc/httpd/conf.modules.d/00-mpm.conf
@@ -699,6 +700,7 @@ setup_apache(){
         cp ../../webservers/apache/conf/deflate.conf ${APADIR}/conf.d
         cp ../../webservers/apache/conf/default-ssl.conf ${APADIR}/conf.d
         sed -i '/ErrorLog/s/^/#/g' /etc/httpd/conf.d/default-ssl.conf
+        service httpd restart
      else
         echoG 'Setting Apache Config'
         cd ${SCRIPTPATH}/
