@@ -5,7 +5,7 @@
 # *********************************************************************/
 
 SERVER_LIST="lsws nginx"
-#SERVER_LIST="apache lsws nginx"
+#SERVER_LIST="apache lsws nginx ols"
 TOOL_LIST="h2load wrk"
 #TOOL_LIST="h2load jmeter"
 TARGET_LIST="1kstatic.html 1knogzip.jpg wordpress"
@@ -27,9 +27,6 @@ BENCHMARKLOG_SG="benchmark_SG.log"
 BENCHMARKLOG_JM="benchmark_JM.log"
 BENCHMARKLOG_WK="benchmark_WK.log"
 BENDATE="${CMDFD}/Benchmark/${DATE}"
-LOG_APACHE="${BENDATE}/apache"
-LOG_LSWS="${BENDATE}/lsws"
-LOG_NGINX="${BENDATE}/nginx"
 TESTSERVERIP="$(cat ${TEST_IP})"
 SSH=(ssh -o 'StrictHostKeyChecking=no' -i ~/.ssh/${SSHKEYNAME})
 JMFD='apache-jmeter'
@@ -43,7 +40,7 @@ TARGET_DOMAIN=""
 HEADER='Accept-Encoding: gzip,deflate'
 SERVER_VERSION='N/A'
 ROUNDNUM=3
-declare -A WEB_ARR=( [apache]=wp_apache/ [lsws]=wp_lsws/ [nginx]=wp_nginx/ )
+declare -A WEB_ARR=( [apache]=wp_apache/ [lsws]=wp_lsws/ [nginx]=wp_nginx/ [ols]=wp_lsws/)
 
 ###### H2Load
 CONCURRENT_STREAMS=$(grep '\-m' ${CLIENTCF}/h2load.conf  | awk '{print $NF}')
@@ -163,9 +160,9 @@ checksystem(){
 checksystem
 
 create_log_fd(){
-    mkdir -p ${LOG_APACHE}
-    mkdir -p ${LOG_LSWS}
-    mkdir -p ${LOG_NGINX}
+    for SERVER in ${SERVER_LIST}; do 
+        mkdir -p "${BENDATE}/${SERVER}"
+    done    
 }
 
 readwholefile(){

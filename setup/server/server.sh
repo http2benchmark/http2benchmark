@@ -739,7 +739,7 @@ cpuprocess(){
 }
 
 change_owner(){
-    chown -R ${USER}:${GROUP} ${DOCROOT}
+    chown -R ${USER}:${GROUP} ${1}
 }
 
 ### Config Apache
@@ -800,7 +800,8 @@ setup_ols(){
     if [ ${OSNAME} = 'centos' ]; then
         sed -i "s/www-data/${USER}/g" ${OLSDIR}/conf/httpd_config.conf
         sed -i "s|/usr/local/lsws/lsphp72/bin/lsphp|/usr/bin/lsphp|g" ${OLSDIR}/conf/httpd_config.conf
-    fi    
+    fi
+    change_owner ${OLSDIR}/cachedata
 } 
 
 mvexscript(){
@@ -844,7 +845,7 @@ main(){
     setup_ols
     cpuprocess 
     install_target
-    change_owner
+    change_owner ${DOCROOT}
     display_pwd
     mvexscript '../../tools/switch.sh' "${CMDFD}/"
     mvexscript '../../tools/monitor.sh' "${CMDFD}/"
