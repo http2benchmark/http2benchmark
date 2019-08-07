@@ -451,7 +451,9 @@ ubuntu_install_ols(){
     ubuntu_reinstall 'openlitespeed'
     wget -q -O - http://rpms.litespeedtech.com/debian/enable_lst_debian_repo.sh | bash >/dev/null 2>&1
     /usr/bin/apt ${OPTIONAL} install openlitespeed -y >/dev/null 2>&1
-    SERVERV=$(cat /usr/local/lsws/VERSION)
+    ENCRYPT_PASS=$(${OLSDIR}/admin/fcgi-bin/admin_php* -q ${OLSDIR}/admin/misc/htpasswd.php ${ADMIN_PASS})
+    echo "admin:${ENCRYPT_PASS}" > ${OLSDIR}/admin/conf/htpasswd
+    SERVERV=$(cat ${OLSDIR}/VERSION)
     echoG "Version: ols ${SERVERV}"
     echo "Version: ols ${SERVERV}" >> ${SERVERACCESS}     
 }
@@ -461,8 +463,10 @@ centos_install_ols(){
     centos_reinstall 'openlitespeed'
     silent rpm -Uvh http://rpms.litespeedtech.com/centos/litespeed-repo-1.1-1.el7.noarch.rpm
     silent /usr/bin/yum ${OPTIONAL} openlitespeed -y
+    ENCRYPT_PASS=$(${OLSDIR}/admin/fcgi-bin/admin_php* -q ${OLSDIR}/admin/misc/htpasswd.php ${ADMIN_PASS})
+    echo "admin:${ENCRYPT_PASS}" > ${OLSDIR}/admin/conf/htpasswd
     checkweb ols
-    SERVERV=$(cat /usr/local/lsws/VERSION)
+    SERVERV=$(cat ${OLSDIR}/VERSION)
     echoG "Version: ols ${SERVERV}"
     echo "Version: ols ${SERVERV}" >> ${SERVERACCESS}    
 }
