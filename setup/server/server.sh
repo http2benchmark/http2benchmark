@@ -737,8 +737,7 @@ cpuprocess(){
         ### Nginx workers      
         sed -i 's/worker_processes  1;/worker_processes  2;/g' ${NGDIR}/nginx.conf
         ### OLS
-        sed -i 's/<binding>1<\/binding>/<binding>2<\/binding>/g' ${OLSDIR}/conf/httpd_config.xml
-        
+        sed -i 's/binding                 1/binding                 3/g' "${OLSDIR}/conf/httpd_config.conf"          
     fi
 }
 
