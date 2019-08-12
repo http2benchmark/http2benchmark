@@ -78,7 +78,7 @@ kill_process_cpu(){
 check_process_cpu(){
     local PROCESS_NAME=''
     case ${1} in 
-        lsws)         PROCESS_NAME='litespeed';;
+        lsws|ols)         PROCESS_NAME='litespeed';;
         apache|httpd) PROCESS_NAME='httpd';;
         nginx)        PROCESS_NAME='nginx';;
     esac
