@@ -22,13 +22,6 @@ SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 SERVER_LIST="apache lsws nginx"
 declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx )
 
-if [ ! -d ${DOCROOT} ]; then 
-    mkdir -p ${DOCROOT}
-fi
-if [ -e ${SERVERACCESS} ]; then 
-    rm -f ${SERVERACCESS}
-fi    
-
 silent() {
   if [[ $debug ]] ; then
     "$@"
@@ -38,12 +31,16 @@ silent() {
 }
 
 create_log_fd(){
+    if [ ! -d ${DOCROOT} ]; then 
+        mkdir -p ${DOCROOT}
+    fi    
     mkdir -p ${ENVFD}/server
     mkdir -p ${CMDFD}/log
 }
 
 clean_log_fd(){
     rm -rf ${ENVLOG}
+    rm -f ${SERVERACCESS}  
 }
 
 ### Tools
@@ -84,6 +81,7 @@ check_system(){
         REPOPATH='/etc/yum.repos.d'
         APACHENAME='httpd'
         APADIR='/etc/httpd'
+        RED_VER=$(rpm -q --whatprovides redhat-release)
     elif [ -f /etc/lsb-release ] || [ -f /etc/debian_version ]; then
         OSNAME=ubuntu 
         REPOPATH='/etc/apt/sources.list.d'
@@ -93,6 +91,13 @@ check_system(){
     fi      
 }
 check_system
+
+KILL_PROCESS(){
+    PROC_NUM=$(pidof ${1})
+    if [ ${?} = 0 ]; then
+        kill -9 ${PROC_NUM}
+    fi    
+}
 
 ubuntu_sysupdate(){
     echoG 'System update'
@@ -116,18 +121,27 @@ backup_old(){
     fi
 }
 
-gen_pwd()
-{
-    ADMIN_PASS=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16 ; echo '')
-    MYSQL_ROOT_PASS=$(openssl rand -hex 24)
-    MYSQL_USER_PASS=$(openssl rand -hex 24)
+gen_pwd(){
+    if [ ! -s ${SERVERACCESS} ]; then 
+        ADMIN_PASS=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16 ; echo '')
+        MYSQL_ROOT_PASS=$(openssl rand -hex 24)
+        MYSQL_USER_PASS=$(openssl rand -hex 24)
+    else
+        ADMIN_PASS=$(grep LSWS_admin_PASS ${SERVERACCESS} | awk '{print $2}')
+        MYSQL_ROOT_PASS=$(grep MYSQL_root_PASS ${SERVERACCESS} | awk '{print $2}')
+        MYSQL_USER_PASS=$(grep MYSQL_wordpress_PASS ${SERVERACCESS} | awk '{print $2}')    
+    fi    
 }
 
 display_pwd(){
-    echoY "LSWS_admin_PASS:           ${ADMIN_PASS}"      | tee -a ${SERVERACCESS}
-    echoY "WordPress_admin_PASS:      ${ADMIN_PASS}"      | tee -a ${SERVERACCESS}
-    echoY "MYSQL_root_PASS:           ${MYSQL_ROOT_PASS}" | tee -a ${SERVERACCESS}
-    echoY "MYSQL_wordpress_PASS:      ${MYSQL_USER_PASS}" | tee -a ${SERVERACCESS}
+    echoY "LSWS_admin_PASS:           ${ADMIN_PASS}" 
+    echo  "LSWS_admin_PASS:           ${ADMIN_PASS}"     >> ${SERVERACCESS}
+    echoY "WordPress_admin_PASS:      ${ADMIN_PASS}"     
+    echo  "WordPress_admin_PASS:      ${ADMIN_PASS}"     >> ${SERVERACCESS}
+    echoY "MYSQL_root_PASS:           ${MYSQL_ROOT_PASS}"
+    echo  "MYSQL_root_PASS:           ${MYSQL_ROOT_PASS}">> ${SERVERACCESS}
+    echoY "MYSQL_wordpress_PASS:      ${MYSQL_USER_PASS}"
+    echo  "MYSQL_wordpress_PASS:      ${MYSQL_USER_PASS}">> ${SERVERACCESS}
     echoG "Access infomation stored in ${SERVERACCESS}"
 }
 
@@ -353,7 +367,7 @@ set_mariadb_root(){
 ubuntu_install_apache(){
     echoG 'Install Apache Web Server'
     if [ -e /usr/sbin/${APACHENAME} ]; then 
-        echoY "Remove existing old ${APACHENAME}" 
+        echoY "Remove existing ${APACHENAME}" 
         rm_old_pkg ${APACHENAME}  
     fi    
     yes "" | add-apt-repository ppa:ondrej/apache2 >/dev/null 2>&1
@@ -372,21 +386,20 @@ ubuntu_install_apache(){
 centos_install_apache(){
     echoG 'Install Apache Web Server'
     if [ -e /usr/sbin/${APACHENAME} ]; then 
-        echoY "Remove existing old ${APACHENAME}" 
-        rm_old_pkg ${APACHENAME}  
+        echoY "Remove existing ${APACHENAME}" 
+        rm_old_pkg ${APACHENAME}
+        silent yum remove httpd* -y
+        KILL_PROCESS ${APACHENAME}  
     fi    
-    curl -ks 'https://setup.ius.io/' -o ${CMDFD}/setup-ius.sh 
-    chmod 0755 ${CMDFD}/setup-ius.sh 
-    silent bash ${CMDFD}/setup-ius.sh 
-    rm -f ${CMDFD}/setup-ius.sh 
-    if [ ! -e ${REPOPATH}/ius.repo ]; then 
+    cd ${REPOPATH} && wget https://repo.codeit.guru/codeit.el$(rpm -q --qf "%{VERSION}" ${RED_VER}).repo >/dev/null 2>&1 
+    if [ ! -e ${REPOPATH}/codeit.el$(rpm -q --qf "%{VERSION}" ${RED_VER}).repo ]; then
         echoR "[Failed] to add ${APACHENAME} repository"
     fi 
-    HTTPDNAME=$(yum list httpd*u | awk -F '.' '/httpd./{print $1}')
-    silent yum install ${HTTPDNAME} -y
+    silent yum install ${HTTPDNAME} mod_ssl mod_fcgi -y
+    sleep 1
     silent systemctl start ${APACHENAME}
     SERVERV=$(echo $(httpd -v | grep version) | awk '{print substr ($3,8,9)}')
-    /usr/bin/yum-config-manager --disable ius >/dev/null 2>&1
+    #/usr/bin/yum-config-manager --disable codeit >/dev/null 2>&1
     checkweb ${APACHENAME}
     echoG "Version: apache ${SERVERV}"
     echo "Version: apache ${SERVERV}" >> ${SERVERACCESS}
@@ -394,9 +407,10 @@ centos_install_apache(){
 ### Install LSWS
 install_lsws(){
     cd ${CMDFD}/
-    if [ -e ${CMDFD}/lsws* ] || [ -d /usr/local/entlsws ]; then
-        echoY 'Remove old LSWS'
+    if [ -e ${CMDFD}/lsws* ] || [ -d ${LSDIR} ]; then
+        echoY 'Remove existing LSWS'
         silent systemctl stop lsws
+        KILL_PROCESS litespeed
         rm -rf ${CMDFD}/lsws*
         rm -rf ${LSDIR}
     fi
@@ -475,8 +489,9 @@ centos_install_ols(){
 ubuntu_install_nginx(){
     echoG 'Install Nginx Web Server'
     if [ -e /usr/sbin/nginx ]; then 
-        echoY "Remove existing old nginx" 
+        echoY "Remove existing nginx" 
         rm_old_pkg nginx 
+        KILL_PROCESS nginx
     fi     
     echo "deb http://nginx.org/packages/ubuntu `lsb_release -cs` nginx" \
         | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
@@ -494,8 +509,9 @@ ubuntu_install_nginx(){
 centos_install_nginx(){
     echoG 'Install Nginx Web Server'
     if [ -e /usr/sbin/nginx ]; then 
-        echoY "Remove existing old nginx" 
+        echoY "Remove existing nginx" 
         rm_old_pkg nginx 
+        KILL_PROCESS nginx
     fi     
     cat > ${REPOPATH}/nginx.repo << EOM
 [nginx-stable]
@@ -612,77 +628,93 @@ install_target(){
         fi
     fi
     ### Update root password
-    ######Mariadb 
-    set_mariadb_root
-    for SERVER in ${SERVER_LIST}; do
-        WP_NAME=${WEB_ARR["${SERVER}"]}
-            ### DownLoad WordPress
-        if [ -e ${DOCROOT}/${WP_NAME}/wp-config.php ]; then 
-            echoG 'WordPress already exist'
-        else       
-            echoG "Install Target: /${WP_NAME}"
-            mkdir ${DOCROOT}/${WP_NAME}
-            cd ${DOCROOT}/${WP_NAME}
-            silent wp core download --allow-root
-                #-e "update mysql.user set authentication_string=password('${MYSQL_ROOT_PASS}') where user='root';"
-            ### Update user password
-            mysql -u root -p${MYSQL_ROOT_PASS} << EOC
+    ######Mariadb
+    silent mysql -u root -e 'status'
+    if [ ${?} = 0 ]; then
+        set_mariadb_root
+        for SERVER in ${SERVER_LIST}; do
+            WP_NAME=${WEB_ARR["${SERVER}"]}
+                ### DownLoad WordPress
+            if [ -e ${DOCROOT}/${WP_NAME}/wp-config.php ]; then 
+                echoG 'WordPress already exist'
+            else       
+                echoG "Install Target: /${WP_NAME}"
+                mkdir ${DOCROOT}/${WP_NAME}
+                cd ${DOCROOT}/${WP_NAME}
+                silent wp core download --allow-root
+                    #-e "update mysql.user set authentication_string=password('${MYSQL_ROOT_PASS}') where user='root';"
+                ### Update user password
+                mysql -u root -p${MYSQL_ROOT_PASS} << EOC
 CREATE DATABASE ${WP_NAME};
 grant all privileges on ${WP_NAME}.* to 'wordpress'@'localhost' identified by '${MYSQL_USER_PASS}';
 EOC
-            ### Install WordPress via WP CLI
-            echoG 'Install WordPress via CLI'
-            wp core config \
-                --dbname=${WP_NAME} \
-                --dbuser=wordpress \
-                --dbpass=${MYSQL_USER_PASS} \
-                --dbhost=localhost --dbprefix=wp_ \
-                --allow-root \
-                --quiet
-            wp core install \
-                --url="${MYIP}/${WP_NAME}" \
-                --title="HTTP2Benchmark" \
-                --admin_user="admin" \
-                --admin_password=${ADMIN_PASS} \
-                --admin_email="email@domain.com" \
-                --allow-root \
-                --quiet      
-
-            ### Install Cache via WP CLI
-            if [ "${SERVER}" = 'apache' ]; then
-                wp plugin install w3-total-cache \
+                ### Install WordPress via WP CLI
+                echoG 'Install WordPress via CLI'
+                wp core config \
+                    --dbname=${WP_NAME} \
+                    --dbuser=wordpress \
+                    --dbpass=${MYSQL_USER_PASS} \
+                    --dbhost=localhost --dbprefix=wp_ \
                     --allow-root \
-                    --activate \
                     --quiet
-                wp w3-total-cache import ${SCRIPTPATH}/../../webservers/apache/w3cache.json \
+                wp core install \
+                    --url="${MYIP}/${WP_NAME}" \
+                    --title="HTTP2Benchmark" \
+                    --admin_user="admin" \
+                    --admin_password=${ADMIN_PASS} \
+                    --admin_email="email@domain.com" \
                     --allow-root \
-                    > /dev/null 2>&1
-            elif [ "${SERVER}" = 'lsws' ]; then
-                wp plugin install litespeed-cache \
-                    --allow-root \
-                    --activate \
-                    --quiet
-            fi    
-        fi   
-    done
-    systemctl restart mariadb
+                    --quiet      
 
+                ### Install Cache via WP CLI
+                if [ "${SERVER}" = 'apache' ]; then
+                    wp plugin install w3-total-cache \
+                        --allow-root \
+                        --activate \
+                        --quiet
+                    wp w3-total-cache import ${SCRIPTPATH}/../../webservers/apache/w3cache.json \
+                        --allow-root \
+                        > /dev/null 2>&1
+                elif [ "${SERVER}" = 'lsws' ]; then
+                    wp plugin install litespeed-cache \
+                        --allow-root \
+                        --activate \
+                        --quiet
+                fi    
+            fi   
+        done
+        systemctl restart mariadb
+    else
+        echo "mysql access deny, skip SQL root & wordpress setup!"
+    fi
     cd ${SCRIPTPATH}/
 ### Install 1kb static file
-    echoG 'Install Target: /1kstatic.html'
-    cp ../../tools/target/1kstatic.html ${DOCROOT}
+    if [ ! -e ${DOCROOT}/1kstatic.html ]; then
+        echoG 'Install Target: /1kstatic.html'
+        cp ../../tools/target/1kstatic.html ${DOCROOT}
+    else
+        echoG '1kstatic.html already exist'       
+    fi    
 ### Install 10kb static file
-    echoG 'Install Target: /10kstatic.html'
-    cp ../../tools/target/10kstatic.html ${DOCROOT}
+    if [ ! -e ${DOCROOT}/10kstatic.html ]; then
+        echoG 'Install Target: /10kstatic.html'
+        cp ../../tools/target/10kstatic.html ${DOCROOT}
+    else
+        echoG '10kstatic.html already exist'     
+    fi    
 ### Install 100kb static file
-    echoG 'Install Target: /100kstatic.html'
     if [ ! -e ${DOCROOT}/100kstatic.html ]; then
+        echoG 'Install Target: /100kstatic.html'
         silent dd if=/dev/zero of=${DOCROOT}/100kstatic.html bs=1K count=100
+    else
+        echoG '100kstatic.jpg already exist'    
     fi
 ### Install 1kb non gzip static file
-    echoG 'Install Target: /1knogzip.jpg'
     if [ ! -e ${DOCROOT}/1kstatic.jpg ]; then
+        echoG 'Install Target: /1knogzip.jpg'
         silent dd if=/dev/zero of=${DOCROOT}/1knogzip.jpg bs=1K count=1 
+    else
+        echoG '1kstatic.jpg already exist'    
     fi 
 ### Install phpinfo page
     if [ ! -e ${DOCROOT}/phpinfo.php ]; then
@@ -691,6 +723,8 @@ EOC
     echo phpinfo();
 ?>
 EOC
+    else
+        echoG 'phpinfo.php already exist' 
     fi
 }
 
@@ -835,9 +869,9 @@ centos_main(){
 }
 
 main(){
-    clean_log_fd
-    create_log_fd
     gen_pwd
+    clean_log_fd
+    create_log_fd    
     get_ip
     [[ ${OSNAME} = 'centos' ]] && centos_main || ubuntu_main
     gen_selfsigned_cert
