@@ -19,6 +19,7 @@ DATE=$(date +%m%d%y-%H%M%S)
 CMDFD='/opt'
 SSHKEYNAME='http2'
 ENVFD="${CMDFD}/env"
+ENVLOG="${ENVFD}/client/environment.log"
 CLIENTTOOL="${CMDFD}/tools"
 CLIENTCF="${CLIENTTOOL}/config"
 TEST_IP="${ENVFD}/ip.log"
@@ -323,11 +324,56 @@ loop_check_server_cpu(){
     done
 }
 
-main_test(){
-    START_TIME="$(date -u +%s)"
+check_network(){
+### Check bendwidth    
+    echoG 'Checking network throughput...'
+    ### Server side
+    silent "${SSH[@]}" root@${1} "iperf -s >/dev/null 2>&1 &"
+    silent "${SSH[@]}" root@${1} "ps aux | grep [i]perf"
+    if [ ${?} = 0 ]; then
+        ### Client side 
+        echoG 'Client side Testing...'
+        iperf -c ${1} -i1  >> ${ENVLOG}
+        ### kill iperf process
+        sleep 1
+        "${SSH[@]}" root@${1} "kill -9 \$(ps aux | grep '[i]perf -s' | awk '{print \$2}')"
+        echo -n 'Network traffic: '
+        echoG "$(awk 'END{print $7,$8}' ${ENVLOG})"
+    else
+        echoR '[Failed] to Iperf due to connection issue'    
+    fi
+### Check latency 
+    ping -c5 -w3 ${1} >> ${ENVLOG}
+    echo -n 'Network latency: '
+    echoG "$(awk -F '/' 'END{print $5}' ${ENVLOG}) ms"
+}
+
+check_spec(){
+    ### Total Memory
+    echo -n 'Client Server - Memory Size: '                             | tee -a ${ENVLOG}
+    echoY $(awk '$1 == "MemTotal:" {print $2/1024 "MB"}' /proc/meminfo) | tee -a ${ENVLOG}
+    ### Total CPU
+    echo -n 'Client Server - CPU number: '                              | tee -a ${ENVLOG}
+    echoY $(lscpu | grep '^CPU(s):' | awk '{print $NF}')                | tee -a ${ENVLOG}
+    echo -n 'Client Server - CPU Thread: '                              | tee -a ${ENVLOG}
+    echoY $(lscpu | grep '^Thread(s) per core' | awk '{print $NF}')     | tee -a ${ENVLOG}
+}
+
+before_test(){
+    if [ -s ${ENVLOG} ]; then
+        rm -f ${ENVLOG}; touch ${ENVLOG}
+    fi
+    check_network ${TESTSERVERIP}
+    check_spec ${TESTSERVERIP}
+    "${SSH[@]}" root@${TESTSERVERIP} "${CMDFD}/monitor.sh check_server_spec"
     validate_tool
     sleep ${INTERVAL}
     kill_process_cpu ${TESTSERVERIP}
+}
+
+main_test(){
+    START_TIME="$(date -u +%s)"
+    before_test
     for SERVER in ${SERVER_LIST}; do
         sleep ${INTERVAL}
         server_switch ${TESTSERVERIP} ${SERVER}
@@ -387,7 +433,6 @@ main_test(){
         echoCYAN "End ${SERVER} ${SERVER_VERSION} Benchmarking <<<<<<<<"
     done
     echoG 'Benchmark testing ------End------'
-    END_TIME="$(date -u +%s)"
     END_TIME="$(date -u +%s)"
     ELAPSED="$((${END_TIME}-${START_TIME}))"
     echoY "***Total of ${ELAPSED} seconds to finish process***"
