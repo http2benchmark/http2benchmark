@@ -18,6 +18,7 @@ TOTAL_BANDWIDTH='N/A'
 TOTAL_REQUESTS='N/A'
 TOTAL_FAILURES='N/A'
 STATUS_CODE_STATS='N/A'
+HEADER_COMPRESSION='N/A'
 
 function parse_wrk() {
   local ITERATION="$1"
@@ -45,14 +46,15 @@ function parse_h2load() {
     TOTAL_FAILURES='0'
   fi
   STATUS_CODE_STATS=$(grep 'status codes:' ${LOG_FILE}.${ITERATION} | perl -pe "s/status codes: (.*?)/\1/")
+  HEADER_COMPRESSION=$(grep 'traffic:' ${LOG_FILE}.${ITERATION} | awk '{print $10}' | grep -Po '[0-9]+.[0-9]+')
 }
 
 function generate_csv() {
   local ITERATION="${1}"
   if [[ ! -f ${WORKING_PATH}/RESULTS.csv ]]; then
-    printf "Test Ran,Iteration,Log File,Server Name,Server Version,Benchmark Tool,Concurrent Connections,Concurrent Streams,URL,Application Protocol,Total Time Spent,Requests Per Second,Bandwidth Per Second,Total Bandwidth,Total Requests,Total Failures,Status Code Stats\n" >> ${WORKING_PATH}/RESULTS.csv
+    printf "Test Ran,Iteration,Log File,Server Name,Server Version,Benchmark Tool,Concurrent Connections,Concurrent Streams,URL,Application Protocol,Total Time Spent,Requests Per Second,Bandwidth Per Second,Total Bandwidth,Total Requests,Total Failures,Header Compression,Status Code Stats\n" >> ${WORKING_PATH}/RESULTS.csv
   fi
-    printf "${TEST_RAN},${ITERATION},${LOG_FILE},${SERVER_NAME},${SERVER_VERSION},${BENCHMARK_TOOL},${CONCURRENT_CONNECTIONS},${CONCURRENT_STREAMS},${URL},${APPLICATION_PROTOCOL},${TOTAL_TIME_SPENT},${REQUESTS_PER_SECOND},${BANDWIDTH_PER_SECOND},${TOTAL_BANDWIDTH},${TOTAL_REQUESTS},${TOTAL_FAILURES},${STATUS_CODE_STATS//,}\n" >> ${WORKING_PATH}/RESULTS.csv
+    printf "${TEST_RAN},${ITERATION},${LOG_FILE},${SERVER_NAME},${SERVER_VERSION},${BENCHMARK_TOOL},${CONCURRENT_CONNECTIONS},${CONCURRENT_STREAMS},${URL},${APPLICATION_PROTOCOL},${TOTAL_TIME_SPENT},${REQUESTS_PER_SECOND},${BANDWIDTH_PER_SECOND},${TOTAL_BANDWIDTH},${TOTAL_REQUESTS},${TOTAL_FAILURES},${HEADER_COMPRESSION}%%,${STATUS_CODE_STATS//,}\n" >> ${WORKING_PATH}/RESULTS.csv
 }
 
 function pretty_display() {
@@ -73,6 +75,7 @@ Total Bandwidth:        ${TOTAL_BANDWIDTH}
 Bandwidth Per Second:   ${BANDWIDTH_PER_SECOND}
 Total Failures:         ${TOTAL_FAILURES}
 Status Code Stats:      ${STATUS_CODE_STATS}
+Header Compression:     ${HEADER_COMPRESSION}%
 
 EOF
 }
