@@ -83,6 +83,7 @@ check_system(){
         REPOPATH='/etc/yum.repos.d'
         APACHENAME='httpd'
         APADIR='/etc/httpd'
+        RED_VER=$(rpm -q --whatprovides redhat-release)
     elif [ -f /etc/lsb-release ] || [ -f /etc/debian_version ]; then
         OSNAME=ubuntu 
         REPOPATH='/etc/apt/sources.list.d'
@@ -354,19 +355,20 @@ ubuntu_install_apache(){
 centos_install_apache(){
     echoG 'Install Apache Web Server'
     if [ -e /usr/sbin/${APACHENAME} ]; then 
-        echoY "Remove existing old ${APACHENAME}" 
-        rm_old_pkg ${APACHENAME}  
-    fi    
-    cd /etc/yum.repos.d && wget https://repo.codeit.guru/codeit.el`rpm -q --qf "%{VERSION}" $(rpm -q --whatprovides redhat-release)`.repo >/dev/null 2>&1
-    if [ ! -e ${REPOPATH}/codeit.el`rpm -q --qf "%{VERSION}" $(rpm -q --whatprovides redhat-release)`.repo ]; then 
-        echoR "[Failed] to add ${APACHENAME} repository"
+        echoY "Remove existing ${APACHENAME}" 
+        rm_old_pkg ${APACHENAME}
+        silent yum remove httpd* -y
+        KILL_PROCESS ${APACHENAME}  
     fi
-    HTTPDNAME=$(yum list httpd*u | awk -F '.' '/httpd./{print $1}')
-    silent yum install ${HTTPDNAME} -y
-    silent yum install mod_ssl mod_fcgi -y
+    cd ${REPOPATH} && wget https://repo.codeit.guru/codeit.el$(rpm -q --qf "%{VERSION}" ${RED_VER}).repo >/dev/null 2>&1 
+    if [ ! -e ${REPOPATH}/codeit.el$(rpm -q --qf "%{VERSION}" ${RED_VER}).repo ]; then
+        echoR "[Failed] to add ${APACHENAME} repository"
+    fi 
+    silent yum install ${HTTPDNAME} mod_ssl mod_fcgi -y
+    sleep 1
     silent systemctl start ${APACHENAME}
     SERVERV=$(echo $(httpd -v | grep version) | awk '{print substr ($3,8,9)}')
-    /usr/bin/yum-config-manager --disable codeit >/dev/null 2>&1
+    #/usr/bin/yum-config-manager --disable codeit >/dev/null 2>&1
     checkweb ${APACHENAME}
     echoG "Version: apache ${SERVERV}"
     echo "Version: apache ${SERVERV}" >> ${SERVERACCESS}
