@@ -14,9 +14,11 @@ echoY() {
 
 update_web_version(){
     if [ "${1}" = 'apache' ]; then
-        SERVERV="$(echo $(apache2 -v | grep version) | awk '{print substr ($3,8,9)}')"
-    elif [ "${1}" = 'httpd' ]; then   
-        SERVERV="$(echo $(httpd -v | grep version) | awk '{print substr ($3,8,9)}')"
+        if [ -f /etc/redhat-release ] ; then            
+            SERVERV="$(echo $(httpd -v | grep version) | awk '{print substr ($3,8,9)}')"
+        else   
+            SERVERV="$(echo $(apache2 -v | grep version) | awk '{print substr ($3,8,9)}')"
+        fi
     elif [ "${1}" = 'lsws' ]; then 
         SERVERV="$(cat /usr/local/entlsws/VERSION)"
     elif [ "${1}" = 'ols' ]; then 
