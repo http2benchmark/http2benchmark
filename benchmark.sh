@@ -5,7 +5,7 @@
 # *********************************************************************/
 
 SERVER_LIST="lsws nginx"
-#SERVER_LIST="apache lsws nginx ols"
+#SERVER_LIST="apache lsws nginx ols caddy"
 TOOL_LIST="h2load wrk"
 #TOOL_LIST="h2load wrk jmeter"
 TARGET_LIST="1kstatic.html 1knogzip.jpg wordpress"
@@ -41,7 +41,7 @@ TARGET_DOMAIN=""
 HEADER='Accept-Encoding: gzip,deflate'
 SERVER_VERSION='N/A'
 ROUNDNUM=3
-declare -A WEB_ARR=( [apache]=wp_apache/ [lsws]=wp_lsws/ [nginx]=wp_nginx/ [ols]=wp_lsws/)
+declare -A WEB_ARR=( [apache]=wp_apache/ [lsws]=wp_lsws/ [nginx]=wp_nginx/ [ols]=wp_lsws/ [caddy]=wp_caddy/ )
 
 ###### H2Load
 CONCURRENT_STREAMS=$(grep '\-m' ${CLIENTCF}/h2load.conf  | awk '{print $NF}')

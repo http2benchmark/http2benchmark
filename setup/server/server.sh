@@ -12,6 +12,7 @@ NGDIR='/etc/nginx'
 APADIR='/etc/apache2'
 LSDIR='/usr/local/entlsws'
 OLSDIR='/usr/local/lsws'
+CADDIR='/etc/caddy'
 FPMCONF='/etc/php-fpm.d/www.conf'
 USER='www-data'
 GROUP='www-data'
@@ -19,8 +20,8 @@ CERTDIR='/etc/ssl'
 MARIAVER='10.3'
 REPOPATH=''
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
-SERVER_LIST="apache lsws nginx"
-declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx )
+SERVER_LIST="apache lsws nginx caddy"
+declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx [caddy]=wp_caddy )
 
 silent() {
   if [[ $debug ]] ; then
@@ -60,6 +61,10 @@ get_ip(){
         MYIP=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
     elif [ "$(sudo dmidecode -s bios-vendor)" = 'Google' ]; then
         MYIP=$(curl -H "Metadata-Flavor: Google" http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip)
+    elif [ "$(dmidecode -s system-manufacturer)" = 'Microsoft Corporation' ];then    
+        MYIP=$(curl -s http://checkip.amazonaws.com || printf "0.0.0.0")  
+    elif [ "$(dmidecode -s system-product-name | cut -c 1-7)" = 'Alibaba' ]; then
+        MYIP=$(curl -s http://100.100.100.200/latest/meta-data/eipv4)              
     else
         MYIP=$(ip -4 route get 8.8.8.8 | awk {'print $7'} | tr -d '\n')
     fi
@@ -404,6 +409,7 @@ centos_install_apache(){
     echoG "Version: apache ${SERVERV}"
     echo "Version: apache ${SERVERV}" >> ${SERVERACCESS}
 }
+
 ### Install LSWS
 install_lsws(){
     cd ${CMDFD}/
@@ -470,6 +476,7 @@ ubuntu_install_ols(){
     SERVERV=$(cat ${OLSDIR}/VERSION)
     echoG "Version: ols ${SERVERV}"
     echo "Version: ols ${SERVERV}" >> ${SERVERACCESS}     
+    checkweb ols
 }
 
 centos_install_ols(){
@@ -479,10 +486,10 @@ centos_install_ols(){
     silent /usr/bin/yum ${OPTIONAL} openlitespeed -y
     ENCRYPT_PASS=$(${OLSDIR}/admin/fcgi-bin/admin_php* -q ${OLSDIR}/admin/misc/htpasswd.php ${ADMIN_PASS})
     echo "admin:${ENCRYPT_PASS}" > ${OLSDIR}/admin/conf/htpasswd
-    checkweb ols
     SERVERV=$(cat ${OLSDIR}/VERSION)
     echoG "Version: ols ${SERVERV}"
     echo "Version: ols ${SERVERV}" >> ${SERVERACCESS}    
+    checkweb ols
 }
 
 ### Install Nginx
@@ -529,17 +536,34 @@ EOM
     checkweb nginx
 }
 
+### Install h20
 ubuntu_install_h2o() {
     echoG 'Install h2o Web Server'
     apt install h2o -y >/dev/null 2>&1
     SERVERV=$(/usr/bin/h2o --version | grep -o 'version [0-9.]*' | grep -o '[0-9.]*')
     echoG "Version: h2o ${SERVERV}"
     echo "Version: h2o ${SERVERV}" >> ${SERVERACCESS}
-
     cp ../../webservers/h2o/h2o.conf /etc/h2o/
 }
 
+### Install Caddy
+ubuntu_install_caddy(){
+    echoG 'Install caddy Web Server'
+    curl -s https://getcaddy.com | bash -s personal > /dev/null 2>&1
+    SERVERV=$(caddy -version | awk '{print substr ($2,2)}')
+    echoG "Version: caddy ${SERVERV}" 
+    echo "Version: caddy ${SERVERV}" >> ${SERVERACCESS}    
+}
 
+centos_install_caddy(){
+    echoG 'Install caddy Web Server'
+    yum install caddy -y > /dev/null 2>&1
+    SERVERV=$(caddy -version | awk '{print substr ($2,2)}')
+    echoG "Version: caddy ${SERVERV}" 
+    echo "Version: caddy ${SERVERV}" >> ${SERVERACCESS}     
+}
+
+### Reinstall tools
 ubuntu_reinstall(){
     apt --installed list 2>/dev/null | grep ${1} >/dev/null
     if [ ${?} = 0 ]; then
@@ -667,7 +691,7 @@ EOC
                     --quiet      
 
                 ### Install Cache via WP CLI
-                if [ "${SERVER}" = 'apache' ]; then
+                if [ "${SERVER}" = 'apache' ] || [ "${SERVER}" = 'caddy' ]; then
                     wp plugin install w3-total-cache \
                         --allow-root \
                         --activate \
@@ -850,6 +874,26 @@ setup_ols(){
     change_owner ${OLSDIR}/cachedata
 } 
 
+### Config Caddy
+setup_caddy(){  
+    echoG 'Setting Caddy Config' 
+    cd ${SCRIPTPATH}/
+    if [ ${OSNAME} = 'centos' ]; then
+        CADDY_BIN='/usr/bin/caddy'
+    else
+        CADDY_BIN='/usr/local/bin/caddy'
+    fi
+    setcap 'cap_net_bind_service=+ep' ${CADDY_BIN}
+    mkdir -p ${CADDIR}
+    cp ../../webservers/caddy/conf/Caddyfile ${CADDIR}/
+    cp ../../webservers/caddy/conf/caddy.service /etc/systemd/system/
+    sed -i "s/example.com/${MYIP}/g" ${CADDIR}/Caddyfile
+    sed -i "s/www-data/${USER}/g" /etc/systemd/system/caddy.service
+    sed -i "s|/usr/local/bin/caddy|${CADDY_BIN}|g" /etc/systemd/system/caddy.service
+    change_owner ${CADDIR}
+    systemctl daemon-reload    
+}
+
 mvexscript(){
     cd ${SCRIPTPATH}/
     cp "${1}" "${2}"
@@ -864,6 +908,7 @@ ubuntu_main(){
     ubuntu_install_lsws
     ubuntu_install_nginx
     ubuntu_install_ols
+    ubuntu_install_caddy
     ubuntu_install_php
 }
 
@@ -874,6 +919,7 @@ centos_main(){
     centos_install_lsws
     centos_install_nginx
     centos_install_ols
+    centos_install_caddy
     centos_install_php
 }
 
@@ -889,6 +935,7 @@ main(){
     setup_lsws
     setup_nginx
     setup_ols
+    setup_caddy
     cpuprocess 
     install_target
     change_owner ${DOCROOT}

@@ -26,6 +26,8 @@ update_web_version(){
     elif [ "${1}" = 'nginx' ]; then 
         SERVERV=$(echo $(/usr/sbin/nginx -v 2>&1) 2>&1)
         SERVERV="$(echo ${SERVERV} | grep -o '[0-9.]*')"
+    elif [ "${1}" = 'caddy' ]; then  
+        SERVERV=$(caddy -version | awk '{print substr ($2,2)}')    
     else
         SERVERV='N/A'    
     fi    

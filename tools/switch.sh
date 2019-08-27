@@ -7,8 +7,8 @@ LSDIR='/usr/local/entlsws'
 OLSDIR='/usr/local/lsws'
 DOCROOT='/var/www/html'
 SERVER_NAME=''
-SERVER_LIST="apache lsws nginx"
-declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx )
+SERVER_LIST="apache lsws nginx caddy"
+declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx [caddy]=wp_caddy )
 
 ### Tools
 echoY() {
@@ -57,6 +57,7 @@ server_stop()
     silent systemctl stop nginx 
     silent systemctl stop ${APACHENAME} 
     silent systemctl stop php7.2-fpm php-fpm
+    silent systemctl stop caddy
     silent ${LSDIR}/bin/lswsctrl stop
     silent ${OLSDIR}/bin/lswsctrl stop
     WSWATCH=$(ps aux | grep '[w]swatch.sh' | awk '{print $2}')
@@ -85,6 +86,10 @@ clean_cache(){
         wp w3-total-cache flush all \
             --allow-root \
             --quiet
+    elif [ "${1}" = 'caddy' ]; then
+        wp w3-total-cache flush all \
+            --allow-root \
+            --quiet            
     elif [ "${1}" = 'lsws' ]; then
         wp lscache-purge all \
             --allow-root \
@@ -130,8 +135,14 @@ server_switch(){
         else    
             SERVER_NAME='php7.2-fpm nginx'
         fi    
+    elif [[ ${1} =~ ^(caddy|CADDY) ]]; then
+        if [ ${OSNAME} = 'centos' ]; then
+            SERVER_NAME='php-fpm caddy'
+        else    
+            SERVER_NAME='php7.2-fpm caddy'
+        fi      
     else 
-    	echoR 'Please input apache, lsws, ols or nginx'
+    	echoR 'Please input apache, lsws, ols, caddy or nginx'
     fi	
     echoNG "Switching to ${SERVER_NAME}..  "
     if [ "${SERVER_NAME}" = 'lsws' ]; then 
@@ -154,7 +165,7 @@ server_switch(){
 }
 
 case ${1} in
-    apache | lsws | nginx | ols ) server_switch ${1} ;;
+    apache | lsws | nginx | ols | caddy) server_switch ${1} ;;
     custom_wpdomain ) custom_wpdomain ${2};;
-    *) echo 'Please input apache, lsws, nginx, ols' ;;
+    *) echo 'Please input apache, lsws, nginx, ols, caddy' ;;
 esac    

@@ -1,0 +1,9 @@
+example.com:443 {
+    tls self_signed
+    root /var/www/html
+    gzip {
+        min_length 300
+        level 1
+    }
+    fastcgi / /run/php/php7.2-fpm.sock php
+}
