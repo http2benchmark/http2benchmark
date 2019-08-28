@@ -760,7 +760,11 @@ gen_selfsigned_cert(){
     # req -x509 = The "X.509" is a public key infrastructure standard
     # -days 365 = The certificate will be considered valid for 1 Y
     # rsa:2048  = make an RSA key that is 2048 bits long
-    silent openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ${KEYNAME} -out ${CERTNAME} <<csrconf
+
+    #silent openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ${KEYNAME} -out ${CERTNAME} <<csrconf
+    ### ECDSA 256bit
+    openssl ecparam  -genkey -name prime256v1 -out ${KEYNAME}
+    silent openssl req -x509 -nodes -days 365 -new -key ${KEYNAME} -out ${CERTNAME} <<csrconf
 US
 NJ
 Virtual
