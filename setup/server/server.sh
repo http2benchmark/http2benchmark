@@ -536,31 +536,63 @@ EOM
     checkweb nginx
 }
 
-### Install h20
+### Install h2o (v2)
 ubuntu_install_h2o() {
-    echoG 'Install h2o Web Server'
-    apt install h2o -y >/dev/null 2>&1
-    SERVERV=$(/usr/bin/h2o --version | grep -o 'version [0-9.]*' | grep -o '[0-9.]*')
-    echoG "Version: h2o ${SERVERV}"
-    echo "Version: h2o ${SERVERV}" >> ${SERVERACCESS}
-    cp ../../webservers/h2o/h2o.conf /etc/h2o/
+    if [ -e /usr/bin/h2o ]; then 
+        echo 'h2o already exist, skip!'
+    else    
+        echoG 'Install h2o Web Server'
+        silent apt install h2o -y >/dev/null 2>&1
+        SERVERV=$(/usr/bin/h2o --version | grep -o 'version [0-9.]*' | grep -o '[0-9.]*')
+        echoG "Version: h2o ${SERVERV}"
+        echo "Version: h2o ${SERVERV}" >> ${SERVERACCESS}
+    fi
+}
+
+centos_install_h2o() {
+    ### Not support for test yet if openssl version < 1.1.0
+    if [ -e /usr/sbin/h2o ]; then 
+        echo 'h2o already exist, skip!'
+    else      
+        echoG 'Install h2o Web Server'
+        cat > ${REPOPATH}/bintray-h2o-rpm.repo << EOM
+[bintray-h2o-rpm]
+name=bintray-h2o-rpm
+baseurl=https://dl.bintray.com/tatsushid/h2o-rpm/centos/\$releasever/\$basearch/
+gpgcheck=0
+repo_gpgcheck=0
+enabled=1
+EOM
+        silent yum install h2o -y
+        SERVERV=$(/usr/sbin/h2o --version | grep -o 'version [0-9.]*' | grep -o '[0-9.]*')
+        echoG "Version: h2o ${SERVERV}"
+        echo "Version: h2o ${SERVERV}" >> ${SERVERACCESS}
+    fi
 }
 
 ### Install Caddy
 ubuntu_install_caddy(){
-    echoG 'Install caddy Web Server'
-    curl -s https://getcaddy.com | bash -s personal > /dev/null 2>&1
-    SERVERV=$(caddy -version | awk '{print substr ($2,2)}')
-    echoG "Version: caddy ${SERVERV}" 
-    echo "Version: caddy ${SERVERV}" >> ${SERVERACCESS}    
+    if [ -e /usr/local/bin/caddy ]; then 
+        echo 'Caddy already exist, skip!'
+    else
+        echoG 'Install caddy Web Server'
+        curl -s https://getcaddy.com | bash -s personal > /dev/null 2>&1
+        SERVERV=$(caddy -version | awk '{print substr ($2,2)}')
+        echoG "Version: caddy ${SERVERV}" 
+        echo "Version: caddy ${SERVERV}" >> ${SERVERACCESS}    
+    fi    
 }
 
 centos_install_caddy(){
-    echoG 'Install caddy Web Server'
-    yum install caddy -y > /dev/null 2>&1
-    SERVERV=$(caddy -version | awk '{print substr ($2,2)}')
-    echoG "Version: caddy ${SERVERV}" 
-    echo "Version: caddy ${SERVERV}" >> ${SERVERACCESS}     
+    if [ -e /usr/bin/caddy ]; then 
+        echo 'Caddy already exist, skip!'
+    else    
+        echoG 'Install caddy Web Server'
+        yum install caddy -y > /dev/null 2>&1
+        SERVERV=$(caddy -version | awk '{print substr ($2,2)}')
+        echoG "Version: caddy ${SERVERV}" 
+        echo "Version: caddy ${SERVERV}" >> ${SERVERACCESS}  
+    fi   
 }
 
 ### Reinstall tools
@@ -889,6 +921,8 @@ setup_caddy(){
     fi
     setcap 'cap_net_bind_service=+ep' ${CADDY_BIN}
     mkdir -p ${CADDIR}
+    backup_old ${CADDIR}/Caddyfile
+    backup_old /etc/systemd/system/caddy.service
     cp ../../webservers/caddy/conf/Caddyfile ${CADDIR}/
     cp ../../webservers/caddy/conf/caddy.service /etc/systemd/system/
     sed -i "s/example.com/${MYIP}/g" ${CADDIR}/Caddyfile
@@ -896,6 +930,13 @@ setup_caddy(){
     sed -i "s|/usr/local/bin/caddy|${CADDY_BIN}|g" /etc/systemd/system/caddy.service
     change_owner ${CADDIR}
     systemctl daemon-reload    
+}
+
+### Config H2O
+setup_h2o(){
+    backup_old /etc/h2o/h2o.conf
+    cp ../../webservers/h2o/conf/h2o.conf /etc/h2o/
+    sed -i "s/www-data/${USER}/g"  /etc/h2o/h2o.conf
 }
 
 mvexscript(){
@@ -913,6 +954,7 @@ ubuntu_main(){
     ubuntu_install_nginx
     ubuntu_install_ols
     ubuntu_install_caddy
+    ubuntu_install_h2o
     ubuntu_install_php
 }
 
@@ -924,6 +966,7 @@ centos_main(){
     centos_install_nginx
     centos_install_ols
     centos_install_caddy
+    centos_install_h2o
     centos_install_php
 }
 
@@ -940,6 +983,7 @@ main(){
     setup_nginx
     setup_ols
     setup_caddy
+    setup_h2o
     cpuprocess 
     install_target
     change_owner ${DOCROOT}
