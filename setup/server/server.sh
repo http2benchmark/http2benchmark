@@ -954,7 +954,7 @@ ubuntu_main(){
     ubuntu_install_nginx
     ubuntu_install_ols
     ubuntu_install_caddy
-    ubuntu_install_h2o
+    #ubuntu_install_h2o
     ubuntu_install_php
 }
 
@@ -966,7 +966,7 @@ centos_main(){
     centos_install_nginx
     centos_install_ols
     centos_install_caddy
-    centos_install_h2o
+    #centos_install_h2o
     centos_install_php
 }
 
@@ -983,7 +983,7 @@ main(){
     setup_nginx
     setup_ols
     setup_caddy
-    setup_h2o
+    #setup_h2o
     cpuprocess 
     install_target
     change_owner ${DOCROOT}
