@@ -5,7 +5,8 @@
 # *********************************************************************/
 
 SERVER_LIST="lsws nginx"
-#SERVER_LIST="apache lsws nginx ols caddy"
+#SERVER_LIST="apache lsws nginx ols caddy h2o"
+###### Due to openssl version, h2o server now support with Debian system only
 TOOL_LIST="h2load wrk"
 #TOOL_LIST="h2load wrk jmeter"
 TARGET_LIST="1kstatic.html 1knogzip.jpg wordpress"

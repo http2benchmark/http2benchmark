@@ -7,8 +7,8 @@ LSDIR='/usr/local/entlsws'
 OLSDIR='/usr/local/lsws'
 DOCROOT='/var/www/html'
 SERVER_NAME=''
-SERVER_LIST="apache lsws nginx caddy"
-declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx [caddy]=wp_caddy )
+SERVER_LIST="apache lsws nginx caddy h2o"
+declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx [caddy]=wp_caddy [h2o]=wp_h2o )
 
 ### Tools
 echoY() {
@@ -58,6 +58,7 @@ server_stop()
     silent systemctl stop ${APACHENAME} 
     silent systemctl stop php7.2-fpm php-fpm
     silent systemctl stop caddy
+    silent systemctl stop h2o
     silent ${LSDIR}/bin/lswsctrl stop
     silent ${OLSDIR}/bin/lswsctrl stop
     WSWATCH=$(ps aux | grep '[w]swatch.sh' | awk '{print $2}')
@@ -140,9 +141,15 @@ server_switch(){
             SERVER_NAME='php-fpm caddy'
         else    
             SERVER_NAME='php7.2-fpm caddy'
-        fi      
+        fi     
+    elif [[ ${1} =~ ^(h2o|H2O) ]]; then
+        if [ ${OSNAME} = 'centos' ]; then
+            SERVER_NAME='php-fpm h2o'
+        else    
+            SERVER_NAME='php7.2-fpm h2o'
+        fi            
     else 
-    	echoR 'Please input apache, lsws, ols, caddy or nginx'
+    	echoR 'Please input apache, lsws, ols, caddy, h2o or nginx'
     fi	
     echoNG "Switching to ${SERVER_NAME}..  "
     if [ "${SERVER_NAME}" = 'lsws' ]; then 
@@ -165,7 +172,7 @@ server_switch(){
 }
 
 case ${1} in
-    apache | lsws | nginx | ols | caddy) server_switch ${1} ;;
+    apache | lsws | nginx | ols | caddy | h2o) server_switch ${1} ;;
     custom_wpdomain ) custom_wpdomain ${2};;
-    *) echo 'Please input apache, lsws, nginx, ols, caddy' ;;
+    *) echo 'Please input apache, lsws, nginx, ols, caddy or h2o' ;;
 esac    

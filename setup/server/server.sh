@@ -20,8 +20,8 @@ CERTDIR='/etc/ssl'
 MARIAVER='10.3'
 REPOPATH=''
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
-SERVER_LIST="apache lsws nginx caddy"
-declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx [caddy]=wp_caddy )
+SERVER_LIST="apache lsws nginx caddy h2o"
+declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx [caddy]=wp_caddy [h2o]=wp_h2o )
 
 silent() {
   if [[ $debug ]] ; then
@@ -177,6 +177,9 @@ checkweb(){
             silent systemctl stop ${PROC_NAME}
         elif [ "${1}" = 'apache2' ]; then
             PROC_NAME='apache2' 
+            silent systemctl stop ${PROC_NAME}
+        elif [ "${1}" = 'h2o' ]; then
+            PROC_NAME='h2o' 
             silent systemctl stop ${PROC_NAME}
         fi
         sleep 5
@@ -546,6 +549,7 @@ ubuntu_install_h2o() {
         SERVERV=$(/usr/bin/h2o --version | grep -o 'version [0-9.]*' | grep -o '[0-9.]*')
         echoG "Version: h2o ${SERVERV}"
         echo "Version: h2o ${SERVERV}" >> ${SERVERACCESS}
+        checkweb h2o
     fi
 }
 
@@ -589,7 +593,7 @@ centos_install_caddy(){
     else    
         echoG 'Install caddy Web Server'
         yum install caddy -y > /dev/null 2>&1
-        SERVERV=$(caddy -version | awk '{print substr ($2,2)}')
+        SERVERV=$(caddy -version | awk '{print $2}')
         echoG "Version: caddy ${SERVERV}" 
         echo "Version: caddy ${SERVERV}" >> ${SERVERACCESS}  
     fi   
@@ -788,12 +792,12 @@ EOC
 gen_selfsigned_cert(){
     KEYNAME="${CERTDIR}/http2benchmark.key"
     CERTNAME="${CERTDIR}/http2benchmark.crt"
-    # -nodes    = skip the option to secure our certificate with a passphrase.
-    # req -x509 = The "X.509" is a public key infrastructure standard
-    # -days 365 = The certificate will be considered valid for 1 Y
-    # rsa:2048  = make an RSA key that is 2048 bits long
-
+    ### -nodes    = skip the option to secure our certificate with a passphrase.
+    ### req -x509 = The "X.509" is a public key infrastructure standard
+    ### -days 365 = The certificate will be considered valid for 1 Y
+    ### rsa:2048  = make an RSA key that is 2048 bits long
     #silent openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ${KEYNAME} -out ${CERTNAME} <<csrconf
+
     ### ECDSA 256bit
     openssl ecparam  -genkey -name prime256v1 -out ${KEYNAME}
     silent openssl req -x509 -nodes -days 365 -new -key ${KEYNAME} -out ${CERTNAME} <<csrconf
@@ -954,7 +958,7 @@ ubuntu_main(){
     ubuntu_install_nginx
     ubuntu_install_ols
     ubuntu_install_caddy
-    #ubuntu_install_h2o
+    ubuntu_install_h2o
     ubuntu_install_php
 }
 
@@ -966,7 +970,7 @@ centos_main(){
     centos_install_nginx
     centos_install_ols
     centos_install_caddy
-    #centos_install_h2o
+    centos_install_h2o
     centos_install_php
 }
 
@@ -983,7 +987,7 @@ main(){
     setup_nginx
     setup_ols
     setup_caddy
-    #setup_h2o
+    setup_h2o
     cpuprocess 
     install_target
     change_owner ${DOCROOT}

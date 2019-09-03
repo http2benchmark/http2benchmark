@@ -27,7 +27,9 @@ update_web_version(){
         SERVERV=$(echo $(/usr/sbin/nginx -v 2>&1) 2>&1)
         SERVERV="$(echo ${SERVERV} | grep -o '[0-9.]*')"
     elif [ "${1}" = 'caddy' ]; then  
-        SERVERV=$(caddy -version | awk '{print substr ($2,2)}')    
+        SERVERV=$(caddy -version | awk '{print substr ($2,2)}')  
+    elif [ "${1}" = 'h2o' ]; then  
+        SERVERV=$(h2o -version | grep version | awk '{print $3}')            
     else
         SERVERV='N/A'    
     fi    
