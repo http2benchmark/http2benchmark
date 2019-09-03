@@ -449,8 +449,8 @@ install_lsws(){
 
     echoG 'Install LiteSpeed Web Server'
     silent /bin/bash install.sh
-    #echoG 'Upgrade to Latest stable release'
-    #silent ${LSDIR}/admin/misc/lsup.sh -f
+    echoG 'Upgrade to Latest stable release'
+    silent ${LSDIR}/admin/misc/lsup.sh -f
     silent ${LSDIR}/bin/lswsctrl start
     checkweb lsws
     SERVERV=$(cat /usr/local/entlsws/VERSION)

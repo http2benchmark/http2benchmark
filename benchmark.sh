@@ -42,7 +42,7 @@ TARGET_DOMAIN=""
 HEADER='Accept-Encoding: gzip,deflate'
 SERVER_VERSION='N/A'
 ROUNDNUM=3
-declare -A WEB_ARR=( [apache]=wp_apache/ [lsws]=wp_lsws/ [nginx]=wp_nginx/ [ols]=wp_lsws/ [caddy]=wp_caddy/ )
+declare -A WEB_ARR=( [apache]=wp_apache/ [lsws]=wp_lsws/ [nginx]=wp_nginx/ [ols]=wp_lsws/ [caddy]=wp_caddy/ [h2o]=wp_h2o/ )
 
 ###### H2Load
 CONCURRENT_STREAMS=$(grep '\-m' ${CLIENTCF}/h2load.conf  | awk '{print $NF}')
