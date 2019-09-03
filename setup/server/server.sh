@@ -727,7 +727,7 @@ EOC
                     --quiet      
 
                 ### Install Cache via WP CLI
-                if [ "${SERVER}" = 'apache' ] || [ "${SERVER}" = 'caddy' ]; then
+                if [ "${SERVER}" = 'apache' ] || [ "${SERVER}" = 'caddy' ] || [ "${SERVER}" = 'h2o' ]; then
                     wp plugin install w3-total-cache \
                         --allow-root \
                         --activate \
