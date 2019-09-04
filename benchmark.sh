@@ -141,7 +141,12 @@ checkroundin(){
 checksystem(){
     if [ -f /etc/redhat-release ] ; then
         OSNAME=centos
-        OSVER=$(awk '{print substr($4,0,1)}' /etc/redhat-release)
+        grep -i fedora /etc/redhat-release >/dev/null 2>&1
+        if [ ${?} = 0 ]; then 
+            OSVER=$(awk '{print $3}' /etc/redhat-release)
+        else
+            OSVER=$(awk '{print substr($4,0,1)}' /etc/redhat-release)
+        fi  
         if [ ${OSVER} -lt 7 ]; then
             echoR "Your OS version is under 7, do you want to continue anyway? [y/N] "
             read TMP_YN
