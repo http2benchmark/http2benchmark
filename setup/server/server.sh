@@ -1,7 +1,6 @@
 #!/bin/bash
 # /********************************************************************
 # HTTP2 Benchmark Server Script
-# Version: 1.0
 # *********************************************************************/
 CMDFD='/opt'
 ENVFD="${CMDFD}/env"
@@ -80,13 +79,18 @@ line_change(){
 
 check_system(){
     if [ -f /etc/redhat-release ] ; then
-        OSNAME=centos
-        USER='apache'
-        GROUP='apache'
-        REPOPATH='/etc/yum.repos.d'
-        APACHENAME='httpd'
-        APADIR='/etc/httpd'
-        RED_VER=$(rpm -q --whatprovides redhat-release)
+        grep -i fedora /etc/redhat-release >/dev/null 2>&1
+        if [ ${?} = 1 ]; then
+            OSNAME=centos
+            USER='apache'
+            GROUP='apache'
+            REPOPATH='/etc/yum.repos.d'
+            APACHENAME='httpd'
+            APADIR='/etc/httpd'
+            RED_VER=$(rpm -q --whatprovides redhat-release)
+        else
+            echoR 'Please use CentOS or Ubuntu OS'
+        fi    
     elif [ -f /etc/lsb-release ] || [ -f /etc/debian_version ]; then
         OSNAME=ubuntu 
         REPOPATH='/etc/apt/sources.list.d'

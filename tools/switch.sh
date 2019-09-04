@@ -154,11 +154,11 @@ server_switch(){
     echoNG "Switching to ${SERVER_NAME}..  "
     if [ "${SERVER_NAME}" = 'lsws' ]; then 
         silent ${LSDIR}/bin/lswsctrl start; sleep 5
-        ps aux | grep openlitespeed | grep -v grep >/dev/null 2>&1
+        ps aux | grep litespeed | grep -v grep >/dev/null 2>&1
         [[ ${?} = 0 ]] && STATUS='active' || STATUS='inactive'
     elif [ "${SERVER_NAME}" = 'ols' ]; then
         silent ${OLSDIR}/bin/lswsctrl start; sleep 5
-        ps aux | grep litespeed | grep -v grep >/dev/null 2>&1
+        ps aux | grep openlitespeed | grep -v grep >/dev/null 2>&1
         [[ ${?} = 0 ]] && STATUS='active' || STATUS='inactive'
     else
         silent systemctl start ${SERVER_NAME}; sleep 5

@@ -1,7 +1,6 @@
 #!/bin/bash
 # /********************************************************************
 # HTTP2 Benchmark Client Script
-# Version: 1.0
 # *********************************************************************/
 CMDFD='/opt'
 SSHKEYNAME='http2'
@@ -62,7 +61,12 @@ linechange(){
 checksystem(){
     if [ -f /etc/redhat-release ] ; then
         OSNAME=centos
-        OSVER=$(awk '{print substr($4,0,1)}' /etc/redhat-release)
+        grep -i fedora /etc/redhat-release >/dev/null 2>&1
+        if [ ${?} = 0 ]; then 
+            OSVER=$(awk '{print $3}' /etc/redhat-release)
+        else
+            OSVER=$(awk '{print substr($4,0,1)}' /etc/redhat-release)
+        fi    
         if [ ${OSVER} -lt 7 ]; then 
             echoR "Your OS version is under 7, do you want to continue anyway? [y/N] "
             read TMP_YN
@@ -81,7 +85,7 @@ checksystem(){
             fi    
         fi          
     else 
-        echoR 'Please use CentOS or Ubuntu/Debian'
+        echoR 'Please use CentOS/Fedora or Ubuntu/Debian'
     fi      
 }
 checksystem
@@ -95,7 +99,7 @@ help_message() {
         ;;
         "2")
         echo 'Please add the following key to ~/.ssh/authorized_keys on the Test server'
-        echoY "$(cat ~/.ssh/http2.pub)" 
+        echoY "$(cat ~/.ssh/${SSHKEYNAME}.pub)" 
         ;;
     esac
 }
@@ -340,7 +344,7 @@ check_ssh(){
 ### Check SSH
     echoG 'Start checking SSH...'   
     silent "${SSH_BATCH[@]}" root@${1} "echo 'Test connection'"
-    if [[ ${?} != 0 || ! -f ~/.ssh/http2.pub ]]; then 
+    if [[ ${?} != 0 || ! -f ~/.ssh/${SSHKEYNAME}.pub ]]; then 
         gen_sshkey
         help_message 2
         echoG 'Once complete, click ANY key to continue: '
