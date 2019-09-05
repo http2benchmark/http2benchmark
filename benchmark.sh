@@ -266,7 +266,7 @@ validate_tool(){
 }
 
 validate_server(){
-    STATUS=$(curl -H "User-Agent: benchmark" -H "${HEADER}" -ILks -o /dev/null -w '%{http_code}' https://${1}/${2})
+    STATUS=$(curl -H "User-Agent: benchmark" -H "${HEADER}" -X GET -ILks -o /dev/null -w '%{http_code}' https://${1}/${2})
 }
 
 siege_benchmark(){
