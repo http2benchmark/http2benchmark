@@ -95,6 +95,7 @@ check_system(){
         OSNAME=ubuntu 
         REPOPATH='/etc/apt/sources.list.d'
         APACHENAME='apache2'
+        FPMCONF='/etc/php/7.2/fpm/pool.d/www.conf'
     else 
         echoR 'Please use CentOS or Ubuntu OS'
     fi      
@@ -210,6 +211,16 @@ rm_old_pkg(){
     else 
         echoR "[Failed] remove ${1}"
     fi             
+}
+
+network_performance(){
+    if [ -f /usr/sbin/sysctl ] || [ -f /sbin/sysctl ]; then
+        echoG 'Setup NetWork Performance'
+        silent sysctl -w net.core.netdev_max_backlog=4096
+        silent sysctl -w net.core.somaxconn=4096
+    else
+        echoR 'System not support sysctl'    
+    fi
 }
 
 ubuntu_install_pkg(){
@@ -643,7 +654,9 @@ ubuntu_install_php(){
     sed -i -e 's/extension=pdo_dblib.so/;extension=pdo_dblib.so/' /usr/local/lsws/lsphp72/etc/php/7.2/mods-available/pdo_dblib.ini
     sed -i -e 's/extension=shmop.so/;extension=shmop.so/' /etc/php/7.2/fpm/conf.d/20-shmop.ini
     sed -i -e 's/extension=wddx.so/;extension=wddx.so/' /etc/php/7.2/fpm/conf.d/20-wddx.ini
-
+    /etc/php/7.2/fpm/pool.d/www.conf
+    NEWKEY='listen.backlog = 4096'
+    line_change 'listen.backlog' ${FPMCONF} "${NEWKEY}"
     #TODO: FETCH SAME PHP INI
 }
 
@@ -671,7 +684,8 @@ centos_install_php(){
     line_change 'listen.group = ' ${FPMCONF} "${NEWKEY}"
     NEWKEY='listen.mode = 0660'
     line_change 'listen.mode = ' ${FPMCONF} "${NEWKEY}"  
-
+    NEWKEY='listen.backlog = 4096'
+    line_change 'listen.backlog' ${FPMCONF} "${NEWKEY}" 
     #TODO: FETCH SAME PHP INI       
 }    
 
@@ -986,6 +1000,7 @@ main(){
     [[ ${OSNAME} = 'centos' ]] && centos_main || ubuntu_main
     gen_selfsigned_cert
     check_spec
+    network_performance
     setup_apache
     setup_lsws
     setup_nginx
