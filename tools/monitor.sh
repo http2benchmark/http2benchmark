@@ -95,13 +95,15 @@ check_server_spec(){
         rm -f ${ENVLOG}; touch ${ENVLOG}
     fi
     ### Total Memory
-    echo -n 'Test   Server - Memory Size: '                             | tee -a ${ENVLOG}
-    echoY $(awk '$1 == "MemTotal:" {print $2/1024 "MB"}' /proc/meminfo) | tee -a ${ENVLOG}
+    echo -n 'Test   Server - Memory Size: '                                  | tee -a ${ENVLOG}
+    echoY $(awk '$1 == "MemTotal:" {print $2/1024 "MB"}' /proc/meminfo)      | tee -a ${ENVLOG}
     ### Total CPU
-    echo -n 'Test   Server - CPU number: '                              | tee -a ${ENVLOG}
-    echoY $(lscpu | grep '^CPU(s):' | awk '{print $NF}')                | tee -a ${ENVLOG}
-    echo -n 'Test   Server - CPU Thread: '                              | tee -a ${ENVLOG}
-    echoY $(lscpu | grep '^Thread(s) per core' | awk '{print $NF}')     | tee -a ${ENVLOG}
+    echo -n 'Test   Server - CPU number: '                                   | tee -a ${ENVLOG}
+    echoY $(lscpu | grep '^CPU(s):' | awk '{print $NF}')                     | tee -a ${ENVLOG}
+    echo -n 'Test   Server - CPU Thread: '                                   | tee -a ${ENVLOG}
+    echoY $(lscpu | grep '^Thread(s) per core' | awk '{print $NF}')          | tee -a ${ENVLOG}
+    echo -n 'Test   Server - CPU Model: '                                    | tee -a ${ENVLOG}
+    echoY "$(lscpu | grep '^Model name' | awk -F ':' '{print $2}'|tr -s ' ')"| tee -a ${ENVLOG}    
 }
 
 check_process_cpu(){

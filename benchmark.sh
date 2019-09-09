@@ -40,6 +40,7 @@ TARGET_DOMAIN=""
 HEADER='Accept-Encoding: gzip,deflate'
 SERVER_VERSION='N/A'
 ROUNDNUM=3
+declare -A PARAM_ARR
 declare -A WEB_ARR=( [apache]=wp_apache/ [lsws]=wp_lsws/ [nginx]=wp_nginx/ [ols]=wp_lsws/ [caddy]=wp_caddy/ [h2o]=wp_h2o/ )
 
 ###### H2Load
@@ -176,7 +177,7 @@ create_log_fd(){
 
 readwholefile(){
     if [ -e ${1} ]; then
-        FILE_CONTENT=$(sed ':a;N;$!ba;s/\n/ /g' ${1})
+        FILE_CONTENT=$(sed ':a;N;$!ba;s/\n/ /g' ${1} | tr -s ' ')
     else
         echoR "${1} not found"
     fi
@@ -358,13 +359,15 @@ check_network(){
 
 check_spec(){
     ### Total Memory
-    echo -n 'Client Server - Memory Size: '                             | tee -a ${ENVLOG}
-    echoY $(awk '$1 == "MemTotal:" {print $2/1024 "MB"}' /proc/meminfo) | tee -a ${ENVLOG}
+    echo -n 'Client Server - Memory Size: '                                  | tee -a ${ENVLOG}
+    echoY $(awk '$1 == "MemTotal:" {print $2/1024 "MB"}' /proc/meminfo)      | tee -a ${ENVLOG}
     ### Total CPU
-    echo -n 'Client Server - CPU number: '                              | tee -a ${ENVLOG}
-    echoY $(lscpu | grep '^CPU(s):' | awk '{print $NF}')                | tee -a ${ENVLOG}
-    echo -n 'Client Server - CPU Thread: '                              | tee -a ${ENVLOG}
-    echoY $(lscpu | grep '^Thread(s) per core' | awk '{print $NF}')     | tee -a ${ENVLOG}
+    echo -n 'Client Server - CPU number: '                                   | tee -a ${ENVLOG}
+    echoY $(lscpu | grep '^CPU(s):' | awk '{print $NF}')                     | tee -a ${ENVLOG}
+    echo -n 'Client Server - CPU Thread: '                                   | tee -a ${ENVLOG}
+    echoY $(lscpu | grep '^Thread(s) per core' | awk '{print $NF}')          | tee -a ${ENVLOG}
+    echo -n 'Client Server - CPU Model: '                                    | tee -a ${ENVLOG}
+    echoY "$(lscpu | grep '^Model name' | awk -F ':' '{print $2}'|tr -s ' ')"| tee -a ${ENVLOG}
 }
 
 before_test(){
@@ -389,6 +392,7 @@ main_test(){
         for TOOL in ${TOOL_LIST}; do
             echoB " - ${TOOL}"
             readwholefile "${CLIENTCF}/${TOOL}.conf"
+            PARAM_ARR["${TOOL}"]="${FILE_CONTENT} '${HEADER}'"            
             for TARGET in ${TARGET_LIST}; do
                 if [ "${TARGET}" = 'wordpress' ]; then
                     TARGET=${WEB_ARR["${SERVER}"]}
@@ -447,7 +451,7 @@ sort_log(){
     for TARGET in ${TARGET_LIST}; do
         noext_target ${TARGET}
         for TOOL in ${TOOL_LIST}; do
-            printf "%s - %s\n" "${TOOL}" "${TARGET}"
+            printf "\033[38;5;148m%s\033[39m\t\033[38;5;148m%s\033[39m\n" "${TOOL}" "${PARAM_ARR[${TOOL}]} https://${TARGET_DOMAIN}/${TARGET}"
             for SERVER in ${SERVER_LIST}; do
                 if [ "${TARGET}" = 'wordpress' ]; then
                     SORT_TARGET=${WEB_ARR["${SERVER}"]}
