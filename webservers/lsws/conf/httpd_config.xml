@@ -126,6 +126,7 @@
       <address>uds://tmp/lshttpd/lsphp72.sock</address>
       <maxConns>2000</maxConns>
       <env>PHP_LSAPI_CHILDREN=2000</env>
+      <env>LSAPI_AVOID_FORK=1</env>
       <initTimeout>60</initTimeout>
       <retryTimeout>0</retryTimeout>
       <persistConn>1</persistConn>
