@@ -123,7 +123,7 @@ ubuntu_sysupdate(){
 centos_sysupdate(){
     echoG 'System update'
     silent yum update -y    
-    getenforce
+    setenforce 0
 }    
 
 backup_old(){
