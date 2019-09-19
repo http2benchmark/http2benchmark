@@ -415,11 +415,11 @@ centos_install_apache(){
         KILL_PROCESS ${APACHENAME}  
     fi    
     cd ${REPOPATH}
-    wget https://repo.codeit.guru/codeit.mainline.el`rpm -q --qf "%{VERSION}" $(rpm -q --whatprovides redhat-release)`.repo >/dev/null 2>&1 
+    wget https://repo.codeit.guru/codeit.el`rpm -q --qf "%{VERSION}" $(rpm -q --whatprovides redhat-release)`.repo >/dev/null 2>&1 
     #if [ ! -e ${REPOPATH}/codeit.el$(rpm -q --qf "%{VERSION}" ${RED_VER}).repo ]; then
     #    echoR "[Failed] to add ${APACHENAME} repository"
     #fi 
-    silent yum install ${HTTPDNAME} mod_ssl mod_fcgi -y
+    silent yum install ${APACHENAME} mod_ssl mod_fcgi -y
     sleep 1
     silent systemctl start ${APACHENAME}
     SERVERV=$(echo $(httpd -v | grep version) | awk '{print substr ($3,8,9)}')
