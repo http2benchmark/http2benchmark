@@ -200,7 +200,7 @@ server_switch(){
     elif [[ ${1} =~ ^(ls|LS) ]]; then
         SERVER_NAME='lsws'
     elif [[ ${1} =~ ^(ols|OLS|openlitespeed) ]]; then
-        SERVER_NAME='ols'    
+        SERVER_NAME='openlitespeed'    
     elif [[ ${1} =~ ^(ng|NG) ]]; then  
         if [ ${OSNAME} = 'centos' ]; then
             SERVER_NAME='php-fpm nginx'
@@ -227,7 +227,7 @@ server_switch(){
         silent ${LSDIR}/bin/lswsctrl start; sleep 5
         ps aux | grep litespeed | grep -v grep >/dev/null 2>&1
         [[ ${?} = 0 ]] && STATUS='active' || STATUS='inactive'
-    elif [ "${SERVER_NAME}" = 'ols' ] || [ "${SERVER_NAME}" = 'openlitespeed' ]; then
+    elif [ "${SERVER_NAME}" = 'openlitespeed' ]; then
         silent ${OLSDIR}/bin/lswsctrl start; sleep 5
         ps aux | grep openlitespeed | grep -v grep >/dev/null 2>&1
         [[ ${?} = 0 ]] && STATUS='active' || STATUS='inactive'

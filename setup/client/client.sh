@@ -106,7 +106,7 @@ checksystem
 help_message() {
     case ${1} in
         "1")
-        echoG 'Client installation finished. For more information, please run -h'
+        echoG 'Client installation finished. For more information, please run bash client.sh -h'
         echoY "You can now run a benchmark with this command: ${BENCH_SH}"
         echo ''
         ;;
