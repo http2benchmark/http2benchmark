@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<virtualHostConfig>
+  <docRoot>/var/www/html/wp_lsws/</docRoot>
+  <enableGzip>1</enableGzip>
+  <logging>
+    <log>
+      <useServer>0</useServer>
+      <fileName>$VH_ROOT/logs/error.log</fileName>
+      <logLevel>ERROR</logLevel>
+      <rollingSize>10M</rollingSize>
+    </log>
+    <accessLog>
+      <useServer>2</useServer>
+    </accessLog>
+  </logging>
+  <index>
+    <useServer>0</useServer>
+    <indexFiles>index.html, index.php</indexFiles>
+    <autoIndex>0</autoIndex>
+  </index>
+  <htAccess>
+    <allowOverride>31</allowOverride>
+  </htAccess>
+  <cache>
+    <storage>
+      <cacheStorePath>/var/www/html/lscache/</cacheStorePath>
+      <litemage>0</litemage>
+    </storage>
+  </cache>
+  <rewrite>
+    <enable>1</enable>
+    <logLevel>0</logLevel>
+  </rewrite>
+</virtualHostConfig>

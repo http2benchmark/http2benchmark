@@ -9,6 +9,7 @@ BENCH_SH="${CMDFD}/benchmark.sh"
 ENVLOG="${ENVFD}/client/environment.log"
 TEST_IP="${ENVFD}/ip.log"
 TESTSERVERIP=''
+HOST_FILE="/etc/hosts"
 CLIENTTOOL="${CMDFD}/tools"
 CLIENTCF="${CLIENTTOOL}/config"
 SSH=(ssh -o 'StrictHostKeyChecking=no' -i ~/.ssh/${SSHKEYNAME})
@@ -17,8 +18,10 @@ JMFD='apache-jmeter'
 JMPLAN='jmeter.jmx'
 JMCFPATH="${CLIENTTOOL}/${JMFD}/bin/examples/${JMPLAN}"
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
-CONF_LIST="urls.conf h2load.conf jmeter.jmx siege.conf wrk.conf"
-SERVER_LIST="apache lsws nginx ols caddy h2o"
+CONF_LIST="urls.conf urls-wp.conf h2load.conf jmeter.jmx siege.conf wrk.conf"
+SERVER_LIST="apache lsws nginx openlitespeed caddy h2o"
+DOMAIN_NAME='benchmark.com'
+WP_DOMAIN_NAME='wordpress.benchmark.com'
 
 silent() {
   if [[ $debug ]] ; then
@@ -49,6 +52,17 @@ echoR()
 {
     echo -e "\033[38;5;203m${1}\033[39m"
 }
+echoB()
+{
+    echo -e "\033[1;3;94m${1}\033[0m"
+}
+echoNG() {
+    echo -ne "\033[38;5;71m${1}\033[39m"
+}
+echoCYAN() {
+    echo -e "\033[1;36m${1}\033[0m"
+}
+
 
 linechange(){
     LINENUM=$(grep -n "${1}" ${2} | cut -d: -f 1)
@@ -92,15 +106,24 @@ checksystem
 help_message() {
     case ${1} in
         "1")
-        echoG 'Client installation finished'
+        echoG 'Client installation finished. For more information, please run -h'
         echoY "You can now run a benchmark with this command: ${BENCH_SH}"
-        echoG "To customize the domain, please run this command: ${0} domain example.com"
-        echoG "For more customization info, please run this command: ${BENCH_SH} -h"
+        echo ''
         ;;
         "2")
         echo 'Please add the following key to ~/.ssh/authorized_keys on the Test server'
         echoY "$(cat ~/.ssh/${SSHKEYNAME}.pub)" 
         ;;
+        "3")
+        echoCYAN "To view the site from your desktop browser, please add the following entries to your ${HOST_FILE} file: "
+        echoY "$(cat ${TEST_IP}) ${DOMAIN_NAME}"
+        echoY "$(cat ${TEST_IP}) ${WP_DOMAIN_NAME}"
+
+        echoCYAN "To customize the WordPress domain, please run the following command:: "
+        echoY "/opt/tools/custom.sh domain example.com"
+
+        echoCYAN "To get custom client server/tool information, please run the following command: "
+        echoY "${BENCH_SH} -h"
     esac
 }
 
@@ -400,24 +423,22 @@ mvexscript(){
 mvclientscripts(){
     mvexscript '../../benchmark.sh' "${CMDFD}/"
     mvexscript '../../tools/parse.sh' "${CLIENTTOOL}/"
+    mvexscript '../../tools/custom.sh' "${CLIENTTOOL}/"
     for CONF in ${CONF_LIST}; do
         mvexscript "../../tools/config/${CONF}" "${CLIENTCF}/"
     done 
 }
 
-gen_domains(){
-    for SERVER in ${SERVER_LIST}; do
-        echo "${SERVER}: ${1}" >> ${CLIENTCF}/urls.conf
-    done
+addhosts(){
+    echo "${TESTSERVERIP} ${DOMAIN_NAME}" >> ${HOST_FILE}
+    echo "${TESTSERVERIP} ${WP_DOMAIN_NAME}" >> ${HOST_FILE}
 }
 
-custom_domains(){
-    echoG "Custom domain to ${1}"
-    TESTSERVERIP=$(cat ${TEST_IP})
-    rm -f  ${CLIENTCF}/urls.conf
-    gen_domains ${1}
-    silent "${SSH[@]}" root@${TESTSERVERIP} "${CMDFD}/switch.sh custom_wpdomain ${1}"
-    echoG "${1} domain setup finished"
+gen_domains(){
+    for SERVER in ${SERVER_LIST}; do
+        echo "${SERVER}: ${DOMAIN_NAME}" >> ${CLIENTCF}/urls.conf
+        echo "${SERVER}: ${1}" >> ${CLIENTCF}/urls-wp.conf
+    done
 }
 
 ubuntu_main(){
@@ -448,11 +469,16 @@ main(){
     check_network ${TESTSERVERIP}
     check_spec ${TESTSERVERIP}
     mvclientscripts  
-    gen_domains ${TESTSERVERIP}
+    addhosts
+    gen_domains ${WP_DOMAIN_NAME}
     help_message 1
 }
 
-case ${1} in 
-    custom_domains | domain) custom_domains ${2};;
-    *) main ;;
-esac    
+case ${1} in
+    -[hH] | -help | --help)
+        help_message 3
+        ;;
+    *)    
+        main    
+        ;;
+esac        

@@ -12,6 +12,7 @@ APADIR='/etc/apache2'
 LSDIR='/usr/local/entlsws'
 OLSDIR='/usr/local/lsws'
 CADDIR='/etc/caddy'
+HTODIR='/etc/h2o'
 FPMCONF='/etc/php-fpm.d/www.conf'
 USER='www-data'
 GROUP='www-data'
@@ -19,8 +20,10 @@ CERTDIR='/etc/ssl'
 MARIAVER='10.3'
 REPOPATH=''
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
-SERVER_LIST="apache lsws nginx caddy h2o"
-declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx [caddy]=wp_caddy [h2o]=wp_h2o )
+SERVER_LIST="apache lsws nginx openlitespeed caddy h2o"
+DOMAIN_NAME='benchmark.com'
+WP_DOMAIN_NAME='wordpress.benchmark.com'
+declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx [openlitespeed]=wp_openlitespeed [caddy]=wp_caddy [h2o]=wp_h2o )
 
 silent() {
   if [[ $debug ]] ; then
@@ -494,8 +497,8 @@ ubuntu_install_ols(){
     ENCRYPT_PASS=$(${OLSDIR}/admin/fcgi-bin/admin_php* -q ${OLSDIR}/admin/misc/htpasswd.php ${ADMIN_PASS})
     echo "admin:${ENCRYPT_PASS}" > ${OLSDIR}/admin/conf/htpasswd
     SERVERV=$(cat ${OLSDIR}/VERSION)
-    echoG "Version: ols ${SERVERV}"
-    echo "Version: ols ${SERVERV}" >> ${SERVERACCESS}     
+    echoG "Version: openlitespeed ${SERVERV}"
+    echo "Version: openlitespeed ${SERVERV}" >> ${SERVERACCESS}     
     checkweb ols
 }
 
@@ -507,8 +510,8 @@ centos_install_ols(){
     ENCRYPT_PASS=$(${OLSDIR}/admin/fcgi-bin/admin_php* -q ${OLSDIR}/admin/misc/htpasswd.php ${ADMIN_PASS})
     echo "admin:${ENCRYPT_PASS}" > ${OLSDIR}/admin/conf/htpasswd
     SERVERV=$(cat ${OLSDIR}/VERSION)
-    echoG "Version: ols ${SERVERV}"
-    echo "Version: ols ${SERVERV}" >> ${SERVERACCESS}    
+    echoG "Version: openlitespeed ${SERVERV}"
+    echo "Version: openlitespeed ${SERVERV}" >> ${SERVERACCESS}    
     checkweb ols
 }
 
@@ -738,7 +741,7 @@ EOC
                     --allow-root \
                     --quiet
                 wp core install \
-                    --url="${MYIP}/${WP_NAME}" \
+                    --url="${WP_DOMAIN_NAME}" \
                     --title="HTTP2Benchmark" \
                     --admin_user="admin" \
                     --admin_password=${ADMIN_PASS} \
@@ -755,7 +758,7 @@ EOC
                     wp w3-total-cache import ${SCRIPTPATH}/../../webservers/apache/w3cache.json \
                         --allow-root \
                         > /dev/null 2>&1
-                elif [ "${SERVER}" = 'lsws' ]; then
+                elif [ "${SERVER}" = 'lsws' ] || [ "${SERVER}" = 'openlitespeed' ]; then
                     wp plugin install litespeed-cache \
                         --allow-root \
                         --activate \
@@ -806,6 +809,10 @@ EOC
     else
         echoG 'phpinfo.php already exist' 
     fi
+
+### Remove index.html
+    rm -f ${DOCROOT}/index.html
+
 }
 
 ### Setup Cert
@@ -891,7 +898,7 @@ setup_apache(){
         fi
         if [ ! -e ${APADIR}/conf-enabled/php7.2-fpm.conf ]; then 
             ln -s ${APADIR}/conf-available/php7.2-fpm.conf ${APADIR}/conf-enabled/php7.2-fpm.conf 
-        fi
+        fi    
     fi    
 }
 ### Config LSWS
@@ -906,6 +913,11 @@ setup_lsws(){
         sed -i "s/www-data/${USER}/g" ${LSDIR}/conf/httpd_config.xml
         sed -i "s|/usr/local/lsws/lsphp72/bin/lsphp|/usr/bin/lsphp|g" ${LSDIR}/conf/httpd_config.xml
     fi    
+    ### Set wordpress virtual host
+    mkdir -p ${LSDIR}/WORDPRESS/conf
+    backup_old ${LSDIR}/WORDPRESS/conf/wordpress.xml
+    cp ../../webservers/lsws/conf/wordpress.xml ${LSDIR}/WORDPRESS/conf/
+    chown -R lsadm:lsadm ${LSDIR}/WORDPRESS/conf
 } 
 
 ### Config Nginx
@@ -917,20 +929,26 @@ setup_nginx(){
     cp ../../webservers/nginx/conf/nginx.conf ${NGDIR}/
     cp ../../webservers/nginx/conf/default.conf ${NGDIR}/conf.d/
     sed -i "s/user apache/user ${USER}/g"  ${NGDIR}/nginx.conf
+    ### Set wordpress virtual host
+    backup_old ${NGDIR}/wordpress.conf
+    cp ../../webservers/nginx/conf/wordpress.conf ${NGDIR}/conf.d/
 }
 
-### Config OLS
+### Config OpenLiteSpeed
 setup_ols(){
     echoG 'Setting OpenLiteSpeed Config'
     cd ${SCRIPTPATH}/
+    mkdir -p ${OLSDIR}/conf/vhosts/Wordpress
     backup_old ${OLSDIR}/conf/httpd_config.conf
     backup_old ${OLSDIR}/Example/conf/vhconf.conf
-    cp ../../webservers/ols/conf/httpd_config.conf ${OLSDIR}/conf/
-    cp ../../webservers/ols/conf/vhconf.conf ${OLSDIR}/conf/vhosts/Example/
+    cp ../../webservers/openlitespeed/conf/httpd_config.conf ${OLSDIR}/conf/
+    cp ../../webservers/openlitespeed/conf/vhconf.conf ${OLSDIR}/conf/vhosts/Example/
+    cp ../../webservers/openlitespeed/conf/wordpress.conf ${OLSDIR}/conf/vhosts/Wordpress/
     if [ ${OSNAME} = 'centos' ]; then
         sed -i "s/www-data/${USER}/g" ${OLSDIR}/conf/httpd_config.conf
         sed -i "s|/usr/local/lsws/lsphp72/bin/lsphp|/usr/bin/lsphp|g" ${OLSDIR}/conf/httpd_config.conf
     fi
+    chown -R lsadm:lsadm ${OLSDIR}/conf/vhosts/Wordpress
     change_owner ${OLSDIR}/cachedata
 } 
 
@@ -949,7 +967,7 @@ setup_caddy(){
     backup_old /etc/systemd/system/caddy.service
     cp ../../webservers/caddy/conf/Caddyfile ${CADDIR}/
     cp ../../webservers/caddy/conf/caddy.service /etc/systemd/system/
-    sed -i "s/example.com/${MYIP}/g" ${CADDIR}/Caddyfile
+    sed -i "s/example.com/${DOMAIN_NAME}/g" ${CADDIR}/Caddyfile
     sed -i "s/www-data/${USER}/g" /etc/systemd/system/caddy.service
     sed -i "s|/usr/local/bin/caddy|${CADDY_BIN}|g" /etc/systemd/system/caddy.service
     change_owner ${CADDIR}
@@ -958,9 +976,9 @@ setup_caddy(){
 
 ### Config H2O
 setup_h2o(){
-    backup_old /etc/h2o/h2o.conf
-    cp ../../webservers/h2o/conf/h2o.conf /etc/h2o/
-    sed -i "s/www-data/${USER}/g"  /etc/h2o/h2o.conf
+    backup_old ${HTODIR}/h2o.conf
+    cp ../../webservers/h2o/conf/h2o.conf ${HTODIR}/
+    sed -i "s/www-data/${USER}/g"  ${HTODIR}/h2o.conf
 }
 
 mvexscript(){
@@ -998,7 +1016,6 @@ main(){
     gen_pwd
     clean_log_fd
     create_log_fd    
-    get_ip
     [[ ${OSNAME} = 'centos' ]] && centos_main || ubuntu_main
     gen_selfsigned_cert
     check_spec

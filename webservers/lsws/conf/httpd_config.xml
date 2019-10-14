@@ -199,18 +199,32 @@
       <setUIDMode>0</setUIDMode>
       <chrootMode>0</chrootMode>
     </virtualHost>
+    <virtualHost>
+      <name>wordpress</name>
+      <vhRoot>$SERVER_ROOT/WORDPRESS/</vhRoot>
+      <configFile>$VH_ROOT/conf/wordpress.xml</configFile>
+      <allowSymbolLink>1</allowSymbolLink>
+      <enableScript>1</enableScript>
+      <restrained>0</restrained>
+      <setUIDMode>0</setUIDMode>
+      <chrootMode>0</chrootMode>
+    </virtualHost>
   </virtualHostList>
   <listenerList>
     <listener>
       <name>HTTPS</name>
       <address>*:443</address>
-      <reusePort>0</reusePort>
       <binding>1</binding>
+      <reusePort>0</reusePort>
       <secure>1</secure>
       <vhostMapList>
         <vhostMap>
           <vhost>Example</vhost>
-          <domain>*</domain>
+          <domain>benchmark.com</domain>
+        </vhostMap>
+        <vhostMap>
+          <vhost>wordpress</vhost>
+          <domain>wordpress.benchmark.com</domain>
         </vhostMap>
       </vhostMapList>
       <keyFile>/etc/ssl/http2benchmark.key</keyFile>
@@ -223,7 +237,11 @@
       <vhostMapList>
         <vhostMap>
           <vhost>Example</vhost>
-          <domain>*</domain>
+          <domain>benchmark.com</domain>
+        </vhostMap>
+        <vhostMap>
+          <vhost>wordpress</vhost>
+          <domain>wordpress.benchmark.com</domain>
         </vhostMap>
       </vhostMapList>
     </listener>

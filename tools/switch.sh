@@ -5,10 +5,14 @@
 CMDFD='/opt'
 LSDIR='/usr/local/entlsws'
 OLSDIR='/usr/local/lsws'
+NGDIR='/etc/nginx'
+APADIR='/etc/apache2'
+CADDIR='/etc/caddy'
+HTODIR='/etc/h2o'
 DOCROOT='/var/www/html'
 SERVER_NAME=''
-SERVER_LIST="apache lsws nginx caddy h2o"
-declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx [caddy]=wp_caddy [h2o]=wp_h2o )
+SERVER_LIST="apache lsws nginx openlitespeed caddy h2o"
+declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx [openlitespeed]=wp_openlitespeed [caddy]=wp_caddy [h2o]=wp_h2o )
 
 ### Tools
 echoY() {
@@ -39,6 +43,7 @@ checksystem(){
         OSNAME=centos
         USER='apache'
         GROUP='apache'
+        APADIR='/etc/httpd'
         REPOPATH='/etc/yum.repos.d'
         APACHENAME='httpd'
     elif [ -f /etc/lsb-release ] || [ -f /etc/debian_version ]; then
@@ -80,46 +85,112 @@ server_stop()
     done     
 }
 
+linechange(){
+    MATCHNUM=$(grep -n "${1}" ${2} | cut -d: -f 1 | wc -l)
+    while [ ${MATCHNUM} -ge 1 ]; do
+        LINENUM=$(grep -n -m 1 "${1}" ${2} | cut -d: -f 1)
+        if [ "$LINENUM" != '' ]; then
+            sed -i "${LINENUM}d" ${2}
+            sed -i "${LINENUM}i${3}" ${2}
+        else
+            break
+        fi
+        MATCHNUM=$((MATCHNUM-1))
+    done
+}
+
+rdlastfield(){
+    if [ -e "${2}" ]; then
+        LASTFIELD=$(grep ${1} ${2} | awk '{print $NF}')
+    else
+        echoR "${2} not found"
+    fi
+}
+
 clean_cache(){
     WP_NAME=${WEB_ARR["${1}"]}
-    cd ${DOCROOT}/${WP_NAME}/
-    if [ "${1}" = 'apache' ]; then
-        wp w3-total-cache flush all \
-            --allow-root \
-            --quiet
-    elif [ "${1}" = 'caddy' ]; then
-        wp w3-total-cache flush all \
-            --allow-root \
-            --quiet            
-    elif [ "${1}" = 'lsws' ]; then
-        wp lscache-purge all \
-            --allow-root \
-            --quiet        
-    elif [ "${1}" = 'nginx' ]; then
-        rm -rf /var/run/nginx-fastcgi-cache/*
-    fi    
+    if [ -d ${DOCROOT}/${WP_NAME} ]; then
+        cd ${DOCROOT}/${WP_NAME}/
+        if [ "${1}" = 'apache' ]; then
+            rm -rf wp-content/cache/page/*
+            rm -rf wp-content/cache/page_enhanced/*
+        elif [ "${1}" = 'caddy' ]; then
+            rm -rf wp-content/cache/page/*
+            rm -rf wp-content/cache/page_enhanced/*
+        elif [ "${1}" = 'h2o' ]; then
+            rm -rf wp-content/cache/page/*
+            rm -rf wp-content/cache/page_enhanced/*
+        elif [ "${1}" = 'lsws' ]; then
+            rm -rf ${DOCROOT}/lscache/*
+        elif [ "${1}" = 'nginx' ]; then
+            rm -rf /var/run/nginx-fastcgi-cache/*  
+        elif [ "${1}" = 'openlitespeed' ]; then
+            rm -rf ${DOCROOT}/lscache/*   
+        else
+            echoY "No cache clean defined for ${1} !"        
+        fi
+    else
+        echo "${DOCROOT}/${WP_NAME} non exist, skip cache clean!"    
+    fi       
 }
 
 custom_wpdomain(){
     for SERVER in ${SERVER_LIST}; do
         server_switch ${SERVER}
         WP_NAME=${WEB_ARR["${SERVER}"]}
-        cd ${DOCROOT}/${WP_NAME}/
-        echoG "Update domain ${1} for ${SERVER}"
-        wp option update home "https://${1}/${WP_NAME}" \ 
-            --allow-root \
-            --quiet
-        wp option update siteurl "https://${1}/${WP_NAME}" \
-            --allow-root \
-            --quiet
+        if [ -d ${DOCROOT}/${WP_NAME} ]; then
+            cd ${DOCROOT}/${WP_NAME}/
+            echoG "Update domain ${1} for ${SERVER}"
+            wp option update home "https://${1}" --allow-root --quiet
+            wp option update siteurl "https://${1}" --allow-root --quiet
+        else
+            echoY "${DOCROOT}/${WP_NAME} non exist, skip custom wordpress domain!" 
+        fi
         echoG 'Clean cache'
         clean_cache ${SERVER}
     done    
 }
 
+custom_domain(){
+    for SERVER in ${SERVER_LIST}; do
+        case ${SERVER} in 
+            apache)
+                NEWKEY="\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ ServerName ${2};"
+                linechange "${1}" ${APADIR}/conf.d/default-ssl.conf "${NEWKEY}"               
+            ;;
+            nginx)
+                NEWKEY="\ \ \ \ server_name  ${2};"
+                linechange "${1}" ${NGDIR}/conf.d/wordpress.conf "${NEWKEY}"            
+            ;;
+            lsws)
+                NEWKEY="\ \ \ \ \ \ \ \ \ \ <domain>${2}</domain>"
+                linechange "${1}" ${LSDIR}/conf/httpd_config.xml "${NEWKEY}"
+            ;;  
+            openlitespeed)
+                NEWKEY="\ \ map                     wordpress ${2}"
+                linechange "${1}" ${OLSDIR}/conf/httpd_config.conf "${NEWKEY}"            
+            ;; 
+            caddy)
+                NEWKEY="${2}:443 {"
+                linechange "${1}" ${CADDIR}/Caddyfile "${NEWKEY}"            
+            ;;
+            h2o)
+                NEWKEY=" \ \"${2}\":"
+                linechange "${1}" ${HTODIR}/h2o.conf "${NEWKEY}"
+            ;;
+        esac
+    done    
+    custom_wpdomain ${2}
+}
+
+
 server_switch(){
     server_stop
-    
+    if [ ${OSNAME} = 'centos' ]; then
+        if [ ! -f /var/run/php/ ]; then 
+            mkdir -p /var/run/php/
+        fi
+    fi    
     if [[ ${1} =~ (ap|AP) ]] || [[ ${1} =~ (ht|HT) ]]; then
 	    if [ ${OSNAME} = 'centos' ]; then 
             SERVER_NAME='php-fpm httpd'
@@ -128,7 +199,7 @@ server_switch(){
         fi
     elif [[ ${1} =~ ^(ls|LS) ]]; then
         SERVER_NAME='lsws'
-    elif [[ ${1} =~ ^(ols|OLS) ]]; then
+    elif [[ ${1} =~ ^(ols|OLS|openlitespeed) ]]; then
         SERVER_NAME='ols'    
     elif [[ ${1} =~ ^(ng|NG) ]]; then  
         if [ ${OSNAME} = 'centos' ]; then
@@ -149,14 +220,14 @@ server_switch(){
             SERVER_NAME='php7.2-fpm h2o'
         fi            
     else 
-    	echoR 'Please input apache, lsws, ols, caddy, h2o or nginx'
+    	echoR 'Please input apache, lsws, openlitespeed, caddy, h2o or nginx'
     fi	
     echoNG "Switching to ${SERVER_NAME}..  "
     if [ "${SERVER_NAME}" = 'lsws' ]; then 
         silent ${LSDIR}/bin/lswsctrl start; sleep 5
         ps aux | grep litespeed | grep -v grep >/dev/null 2>&1
         [[ ${?} = 0 ]] && STATUS='active' || STATUS='inactive'
-    elif [ "${SERVER_NAME}" = 'ols' ]; then
+    elif [ "${SERVER_NAME}" = 'ols' ] || [ "${SERVER_NAME}" = 'openlitespeed' ]; then
         silent ${OLSDIR}/bin/lswsctrl start; sleep 5
         ps aux | grep openlitespeed | grep -v grep >/dev/null 2>&1
         [[ ${?} = 0 ]] && STATUS='active' || STATUS='inactive'
@@ -172,7 +243,7 @@ server_switch(){
 }
 
 case ${1} in
-    apache | lsws | nginx | ols | caddy | h2o) server_switch ${1} ;;
-    custom_wpdomain ) custom_wpdomain ${2};;
-    *) echo 'Please input apache, lsws, nginx, ols, caddy or h2o' ;;
+    apache | lsws | nginx | ols | openlitespeed | caddy | h2o) server_switch ${1} ;;
+    custom_domain ) custom_domain ${2} ${3};;
+    *) echo 'Please input apache, lsws, nginx, openlitespeed, caddy or h2o' ;;
 esac    

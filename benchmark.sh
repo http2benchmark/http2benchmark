@@ -4,7 +4,7 @@
 # *********************************************************************/
 
 SERVER_LIST="lsws nginx"
-#SERVER_LIST="apache lsws nginx ols caddy h2o"
+#SERVER_LIST="apache lsws nginx openlitespeed caddy h2o"
 TOOL_LIST="h2load wrk"
 #TOOL_LIST="h2load wrk jmeter"
 TARGET_LIST="1kstatic.html 1knogzip.jpg wordpress"
@@ -36,12 +36,14 @@ RESULT_NAME='RESULTS'
 FILE_CONTENT=""
 LASTFIELD=''
 KILL_PROCESS_LIST=''
+TMP_TARGET=''
 TARGET_DOMAIN=""
+TARGET_WP_DOMAIN=""
 HEADER='Accept-Encoding: gzip,deflate'
 SERVER_VERSION='N/A'
 ROUNDNUM=3
 declare -A PARAM_ARR
-declare -A WEB_ARR=( [apache]=wp_apache/ [lsws]=wp_lsws/ [nginx]=wp_nginx/ [ols]=wp_lsws/ [caddy]=wp_caddy/ [h2o]=wp_h2o/ )
+declare -A WEB_ARR=( [apache]=wp_apache/ [lsws]=wp_lsws/ [nginx]=wp_nginx/ [ols]=wp_openlitespeed/ [caddy]=wp_caddy/ [h2o]=wp_h2o/ )
 
 ###### H2Load
 CONCURRENT_STREAMS=$(grep '\-m' ${CLIENTCF}/h2load.conf  | awk '{print $NF}')
@@ -196,14 +198,25 @@ noext_target(){
     FILENAME=${FILENAME%.*}
 }
 
-target_check(){
-    if [ ! -z ${3} ]; then
-        echo "Check Target command: curl -H 'User-Agent: benchmark' -H "${HEADER}" -sILk https://${1}/${2}" >> ${3}
+check_wp_target(){
+    if [ "${1}" = 'wordpress' ]; then
+        TMP_TARGET=''
+        TMP_DOMAIN=${TARGET_WP_DOMAIN}
+    else
+        TMP_TARGET="${1}"
+        TMP_DOMAIN=${TARGET_DOMAIN}
     fi
-    echo "Target Response >>>>>>>>>>>>>>>>>>>>>>>"
-    silent curl -H "User-Agent: benchmark" -H "${HEADER}" -siLk https://${1}/${2}
-    curl -H "User-Agent: benchmark" -H "${HEADER}" -sILk https://${1}/${2}
-    echo "Target Response <<<<<<<<<<<<<<<<<<<<<<<"
+}
+
+target_check(){
+    check_wp_target ${2}
+    if [ ! -z ${3} ]; then
+        echo "Check Target command: curl -H 'User-Agent: benchmark' -H "${HEADER}" -sILk https://${1}/${TMP_TARGET}" >> ${3}
+    fi
+    echo 'Target Response >>>>>>>>>>>>>>>>>>>>>>' >> ${MAPPINGLOG}
+    silent curl -H "User-Agent: benchmark" -H "${HEADER}" -siLk https://${1}/${TMP_TARGET}
+    curl -H "User-Agent: benchmark" -H "${HEADER}" -sILk https://${1}/${TMP_TARGET} >> ${MAPPINGLOG}
+    echo 'Target Response <<<<<<<<<<<<<<<<<<<<<<<' >> ${MAPPINGLOG}
 }
 
 get_server_version(){
@@ -271,37 +284,40 @@ validate_server(){
 }
 
 siege_benchmark(){
+    check_wp_target ${2}
     MAPPINGLOG="${BENDATE}/${3}/${FILENAME}-${BENCHMARKLOG_SG}.${4}"
-    echo "Target: https://${1}/${2}" >> ${MAPPINGLOG}
-    target_check ${TESTSERVERIP} ${TARGET} ${MAPPINGLOG} >> ${MAPPINGLOG}
-    echo "Benchmark Command: siege ${FILE_CONTENT} ${HEADER} https://${1}/${2}" >> ${MAPPINGLOG}
-    siege ${FILE_CONTENT} "${HEADER}" "https://${1}/${2}" 1>/dev/null 2>> ${MAPPINGLOG}
+    echo "Target: https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
+    target_check ${1} ${2} ${MAPPINGLOG}
+    echo "Benchmark Command: siege ${FILE_CONTENT} ${HEADER} https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
+    siege ${FILE_CONTENT} "${HEADER}" "https://${1}/${TMP_TARGET}" 1>/dev/null 2>> ${MAPPINGLOG}
 }
 h2load_benchmark(){
+    check_wp_target ${2}
     MAPPINGLOG="${BENDATE}/${3}/${FILENAME}-${BENCHMARKLOG_H2}.${4}"
-    echo "Target: https://${1}/${2}" >> ${MAPPINGLOG}
-    target_check ${TESTSERVERIP} ${TARGET} ${MAPPINGLOG} >> ${MAPPINGLOG}
-    echo "Benchmark Command: h2load ${FILE_CONTENT} ${HEADER} https://${1}/${2}" >> ${MAPPINGLOG}
-    h2load ${FILE_CONTENT} "${HEADER}" "https://${1}/${2}" >> ${MAPPINGLOG}
+    echo "Target: https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
+    target_check ${1} ${2} ${MAPPINGLOG}
+    echo "Benchmark Command: h2load ${FILE_CONTENT} ${HEADER} https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
+    h2load ${FILE_CONTENT} "${HEADER}" "https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
 }
 jmeter_benchmark(){
+    check_wp_target ${2}
     MAPPINGLOG="${BENDATE}/${3}/${FILENAME}-${BENCHMARKLOG_JM}.${4}"
     cd ${CLIENTTOOL}/${JMFD}/bin
-    echo "Target: https://${1}/${2}" >> ${MAPPINGLOG}
-    target_check ${TESTSERVERIP} ${TARGET} ${MAPPINGLOG} >> ${MAPPINGLOG}
-    NEWKEY="          <stringProp name="HTTPSampler.domain">${1}/${2}</stringProp>"
+    echo "Target: https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
+    target_check ${1} ${2} ${MAPPINGLOG}
+    NEWKEY="          <stringProp name="HTTPSampler.domain">${1}/${TMP_TARGET}</stringProp>"
     linechange 'HTTPSampler.domain' ${JMCFPATH} "${NEWKEY}"
-    #echo "Benchmark Command: jmeter.sh ${FILE_CONTENT} \${JMFD}" >> ${MAPPINGLOG}
     ./jmeter.sh ${FILE_CONTENT} "${JMFD}" >> ${MAPPINGLOG}
     cd ~
 }
 wrk_benchmark(){
+    check_wp_target ${2}
     MAPPINGLOG="${BENDATE}/${3}/${FILENAME}-${BENCHMARKLOG_WK}.${4}"
     cd ${CLIENTTOOL}/wrk
-    echo "Target: https://${1}/${2}" >> ${MAPPINGLOG}
-    target_check ${TESTSERVERIP} ${TARGET} ${MAPPINGLOG} >> ${MAPPINGLOG}
-    echo "Benchmark Command: wrk ${FILE_CONTENT} ${HEADER} https://${1}/${2}" >> ${MAPPINGLOG}
-    ./wrk ${FILE_CONTENT} "${HEADER}" "https://${1}/${2}" >> ${MAPPINGLOG}
+    echo "Target: https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
+    target_check ${1} ${2} ${MAPPINGLOG}
+    echo "Benchmark Command: wrk ${FILE_CONTENT} ${HEADER} https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
+    ./wrk ${FILE_CONTENT} "${HEADER}" "https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
 }
 
 server_switch(){
@@ -388,23 +404,23 @@ main_test(){
         get_server_version ${SERVER}
         rdlastfield ${SERVER} "${CLIENTCF}/urls.conf"
         TARGET_DOMAIN="${LASTFIELD}"
+        rdlastfield ${SERVER} "${CLIENTCF}/urls-wp.conf"
+        TARGET_WP_DOMAIN="${LASTFIELD}"        
         echoCYAN "Start ${SERVER} ${SERVER_VERSION} Benchmarking >>>>>>>>"
         for TOOL in ${TOOL_LIST}; do
             echoB " - ${TOOL}"
             readwholefile "${CLIENTCF}/${TOOL}.conf"
             PARAM_ARR["${TOOL}"]="${FILE_CONTENT} '${HEADER}'"            
             for TARGET in ${TARGET_LIST}; do
-                if [ "${TARGET}" = 'wordpress' ]; then
-                    TARGET=${WEB_ARR["${SERVER}"]}
-                fi
-                echoY "      |--- https://${TARGET_DOMAIN}/${TARGET}"
+                check_wp_target ${TARGET}
+                echoY "      |--- https://${TMP_DOMAIN}/${TMP_TARGET}"  
                 if [ ${CHECK} = 'ON' ]; then
                     sleep ${INTERVAL}
                     loop_check_server_cpu
                 fi
                 noext_target ${TARGET}
                 sleep ${INTERVAL}
-                validate_server ${TARGET_DOMAIN} ${TARGET}
+                validate_server ${TMP_DOMAIN} ${TMP_TARGET}
                 if [ ${?} = 0 ] && [ "${STATUS}" = '200' ]; then
                     if [ ${CHECK} = 'ON' ]; then
                         sleep ${INTERVAL}
@@ -415,19 +431,19 @@ main_test(){
                         echoY "          |--- ${ROUND} / ${ROUNDNUM}"
                         if [ ${TOOL} = 'siege' ] && [ "${RUNSIEGE}" = 'true' ]; then
                             sleep ${INTERVAL}
-                            siege_benchmark ${TARGET_DOMAIN} ${TARGET} ${SERVER} ${ROUND}
+                            siege_benchmark ${TMP_DOMAIN} ${TARGET} ${SERVER} ${ROUND}
                         fi
                         if [ ${TOOL} = 'h2load' ] && [ "${RUNH2LOAD}" = 'true' ]; then
                             sleep ${INTERVAL}
-                            h2load_benchmark  ${TARGET_DOMAIN} ${TARGET} ${SERVER} ${ROUND}
+                            h2load_benchmark  ${TMP_DOMAIN} ${TARGET} ${SERVER} ${ROUND}
                         fi
                         if [ ${TOOL} = 'jmeter' ] && [ "${RUNJMETER}" = 'true' ]; then
                             sleep ${INTERVAL}
-                            jmeter_benchmark ${TARGET_DOMAIN} ${TARGET} ${SERVER} ${ROUND}
+                            jmeter_benchmark ${TMP_DOMAIN} ${TARGET} ${SERVER} ${ROUND}
                         fi
                         if [ ${TOOL} = 'wrk' ] && [ "${RUNWRK}" = 'true' ]; then
                             sleep ${INTERVAL}
-                            wrk_benchmark ${TARGET_DOMAIN} ${TARGET} ${SERVER} ${ROUND}
+                            wrk_benchmark ${TMP_DOMAIN} ${TARGET} ${SERVER} ${ROUND}
                         fi
                     done
                     if [ ${CHECK} = 'ON' ]; then
@@ -450,14 +466,11 @@ main_test(){
 sort_log(){
     for TARGET in ${TARGET_LIST}; do
         noext_target ${TARGET}
-        for TOOL in ${TOOL_LIST}; do
-            printf "\033[38;5;148m%s\033[39m\t\033[38;5;148m%s\033[39m\n" "${TOOL}" "${PARAM_ARR[${TOOL}]} https://${TARGET_DOMAIN}/${TARGET}"
+        check_wp_target ${TARGET}
+        for TOOL in ${TOOL_LIST}; do              
+            printf "\033[38;5;148m%s\033[39m\t\033[38;5;148m%s\033[39m\n" "${TOOL}" "${PARAM_ARR[${TOOL}]} https://${TMP_DOMAIN}/${TMP_TARGET}"
             for SERVER in ${SERVER_LIST}; do
-                if [ "${TARGET}" = 'wordpress' ]; then
-                    SORT_TARGET=${WEB_ARR["${SERVER}"]}
-                else
-                    SORT_TARGET=${TARGET}
-                fi
+                SORT_TARGET=${TARGET}
                 get_server_version ${SERVER}
 
                 local TIME_SPENT='0'
@@ -547,9 +560,6 @@ parse_log() {
         get_server_version ${SERVER}
         for TOOL in ${TOOL_LIST}; do
             for TARGET in ${TARGET_LIST}; do
-                if [ "${TARGET}" = 'wordpress' ]; then
-                    TARGET=${WEB_ARR["${SERVER}"]}
-                fi
                 noext_target ${TARGET}
                 case ${TOOL} in
                     siege)  BENCHMARKLOG=${BENCHMARKLOG_SG} ;;
