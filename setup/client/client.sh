@@ -382,17 +382,16 @@ check_network(){
     ### Server side
     silent "${SSH[@]}" root@${1} "iperf -s >/dev/null 2>&1 &"
     silent "${SSH[@]}" root@${1} "ps aux | grep [i]perf"
-    if [ ${?} = 0 ]; then
-        ### Client side 
+    CHECK_CON=$(iperf -c ${1} -t 1 2>&1 >/dev/null)
+    if [ $(echo ${CHECK_CON} | grep -i route | wc -l) = 0 ]; then
         echoG 'Client side Testing...'
         iperf -c ${1} -i1  >> ${ENVLOG}
-        ### kill iperf process
         sleep 1
         "${SSH[@]}" root@${1} "kill -9 \$(ps aux | grep '[i]perf -s' | awk '{print \$2}')"
         echo -n 'Network traffic: '
         echoG "$(awk 'END{print $7,$8}' ${ENVLOG})"
     else
-        echoR '[Failed] to Iperf due to connection issue'    
+        echoR '[Failed] to Iperf due to connection issue, please check your firewall settings!'    
     fi
 ### Check latency 
     ping -c5 -w3 ${1} >> ${ENVLOG}
