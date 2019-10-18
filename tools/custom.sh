@@ -2,6 +2,7 @@
 CMDFD='/opt'
 SSHKEYNAME='http2'
 ENVFD="${CMDFD}/env"
+CUSTOM_WP="${ENVFD}/custom_wp"
 BENCH_SH="${CMDFD}/benchmark.sh"
 ENVLOG="${ENVFD}/client/environment.log"
 TEST_IP="${ENVFD}/ip.log"
@@ -22,11 +23,25 @@ echoG() {
     echo -e "\033[38;5;71m${1}\033[39m"
 }
 
+echoBG() {
+    echo -e "\033[38;5;47m${1}\033[39m"
+}
+
 help_message() {
     case ${1} in
         "1")
-        echoY "Usage: [Command] [parameter]"
-        echoY "Commands: domain [example.com]"
+        echo '###############################################################################################'
+        echo "To custom wordpress domain, run: " 
+        echoBG "bash ${CLIENTTOOL}/custom.sh domain [example.com]"
+        echo ''
+        echo "To import your wordpress site to test, please access to your wordpress folder and run: "
+        echoBG "tar -czvf mysite.tar.gz ."
+        echo 'Then export the wordpress database, run: '
+        echoBG "mysqldump -u root -p[ROOT_PASSWORD] [DB_NAME] > wordpressdb.sql"
+        echo "upload both of your 'mysite.tar.gz' and 'mywordpressdb.sql' to the test server folder: ${CUSTOM_WP}"
+        echo "Execute the auto wordpress migration please run: "
+        echoBG "bash ${CLIENTTOOL}/custom.sh wordpress"
+        echo '###############################################################################################'
         ;;
     esac
 }
@@ -68,7 +83,14 @@ custom_domains(){
     echoG "${1} domain setup finished"
 }
 
+custom_wp(){
+    echoG "Custom wordpress ..."
+    "${SSH[@]}" root@${TESTSERVERIP} "${CMDFD}/customwp.sh custom_wordpress" > /dev/null 2>&1
+    echoG "WordPress setup finished"    
+}
+
 case ${1} in 
-    domain | Domain) custom_domains ${2};;
+    [dD]omain ) custom_domains ${2};;
+    [wW]*) custom_wp;;
     *) help_message 1 ;;
 esac  

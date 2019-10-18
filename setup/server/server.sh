@@ -5,6 +5,7 @@
 CMDFD='/opt'
 ENVFD="${CMDFD}/env"
 ENVLOG="${ENVFD}/server/environment.log"
+CUSTOM_WP="${ENVFD}/custom_wp"
 SERVERACCESS="${ENVFD}/serveraccess.txt"
 DOCROOT='/var/www/html'
 NGDIR='/etc/nginx'
@@ -659,7 +660,6 @@ ubuntu_install_php(){
     sed -i -e 's/extension=pdo_dblib.so/;extension=pdo_dblib.so/' /usr/local/lsws/lsphp72/etc/php/7.2/mods-available/pdo_dblib.ini
     sed -i -e 's/extension=shmop.so/;extension=shmop.so/' /etc/php/7.2/fpm/conf.d/20-shmop.ini
     sed -i -e 's/extension=wddx.so/;extension=wddx.so/' /etc/php/7.2/fpm/conf.d/20-wddx.ini
-    /etc/php/7.2/fpm/pool.d/www.conf
     NEWKEY='listen.backlog = 4096'
     line_change 'listen.backlog' ${FPMCONF} "${NEWKEY}"
     #TODO: FETCH SAME PHP INI
@@ -770,6 +770,7 @@ EOC
     else
         echo "mysql access deny, skip SQL root & wordpress setup!"
     fi
+    mkdir ${CUSTOM_WP}
     cd ${SCRIPTPATH}/
 ### Install 1kb static file
     if [ ! -e ${DOCROOT}/1kstatic.html ]; then
@@ -939,6 +940,7 @@ setup_ols(){
     echoG 'Setting OpenLiteSpeed Config'
     cd ${SCRIPTPATH}/
     mkdir -p ${OLSDIR}/conf/vhosts/Wordpress
+    mkdir ${OLSDIR}/wordpress
     backup_old ${OLSDIR}/conf/httpd_config.conf
     backup_old ${OLSDIR}/Example/conf/vhconf.conf
     cp ../../webservers/openlitespeed/conf/httpd_config.conf ${OLSDIR}/conf/
