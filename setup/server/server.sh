@@ -19,6 +19,8 @@ USER='www-data'
 GROUP='www-data'
 CERTDIR='/etc/ssl'
 MARIAVER='10.3'
+PHP_P='7'
+PHP_S='2'
 REPOPATH=''
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 SERVER_LIST="apache lsws nginx openlitespeed caddy h2o"
@@ -99,7 +101,7 @@ check_system(){
         OSNAME=ubuntu 
         REPOPATH='/etc/apt/sources.list.d'
         APACHENAME='apache2'
-        FPMCONF='/etc/php/7.2/fpm/pool.d/www.conf'
+        FPMCONF="/etc/php/${PHP_P}.${PHP_S}/fpm/pool.d/www.conf"
     else 
         echoR 'Please use CentOS or Ubuntu OS'
     fi      
@@ -641,25 +643,22 @@ centos_reinstall(){
 ### Install PHP and Modules
 ubuntu_install_php(){
     echoG 'Install PHP & Packages for LSWS'  
-    # LSWS
-    ubuntu_reinstall 'lsphp72'
-      
+    ubuntu_reinstall "lsphp${PHP_P}${PHP_S}"    
     wget -qO - http://rpms.litespeedtech.com/debian/enable_lst_debain_repo.sh | bash >/dev/null 2>&1
-    /usr/bin/apt ${OPTIONAL} install -y lsphp72 lsphp72-common lsphp72-curl lsphp72-dbg lsphp72-dev lsphp72-json \
-        lsphp72-modules-source lsphp72-mysql lsphp72-opcache lsphp72-pspell lsphp72-recode lsphp72-sybase lsphp72-tidy \
-        >/dev/null 2>&1
-
+    for PKG in '' -common -curl -json -modules-source -mysql -opcache -pspell -recode -sybase -tidy; do
+        /usr/bin/apt ${OPTIONAL} install -y lsphp${PHP_P}${PHP_S}${PKG} >/dev/null 2>&1
+    done
+    
     echoG 'Install PHP & Packages for Apache & Nginx'  
-    # Apache + Nginx
-    ubuntu_reinstall 'php7.2'
-     
-    /usr/bin/apt ${OPTIONAL} install -y php7.2 php7.2-bcmath php7.2-cli php7.2-common php7.2-curl php7.2-enchant \
-        php7.2-fpm php7.2-gd php7.2-gmp php7.2-json php7.2-mbstring php7.2-mysql php7.2-opcache php7.2-pspell \
-        php7.2-readline php7.2-recode php7.2-soap php7.2-tidy php7.2-xml php7.2-xmlrpc php7.2-zip >/dev/null 2>&1
-
-    sed -i -e 's/extension=pdo_dblib.so/;extension=pdo_dblib.so/' /usr/local/lsws/lsphp72/etc/php/7.2/mods-available/pdo_dblib.ini
-    sed -i -e 's/extension=shmop.so/;extension=shmop.so/' /etc/php/7.2/fpm/conf.d/20-shmop.ini
-    sed -i -e 's/extension=wddx.so/;extension=wddx.so/' /etc/php/7.2/fpm/conf.d/20-wddx.ini
+    ubuntu_reinstall "php${PHP_P}.${PHP_S}"
+    for PKG in '' -bcmath -cli -common -curl -enchant -fpm -gd -gmp -json -mbstring -mysql -opcache \
+        -pspell -readline -recode -soap -tidy -xml -xmlrpc -zip; do 
+        /usr/bin/apt ${OPTIONAL} install -y php${PHP_P}.${PHP_S}${PKG} >/dev/null 2>&1
+    done
+    sed -i -e 's/extension=pdo_dblib.so/;extension=pdo_dblib.so/' \
+        /usr/local/lsws/lsphp${PHP_P}${PHP_S}/etc/php/${PHP_P}.${PHP_S}/mods-available/pdo_dblib.ini
+    sed -i -e 's/extension=shmop.so/;extension=shmop.so/' /etc/php/${PHP_P}.${PHP_S}/fpm/conf.d/20-shmop.ini
+    sed -i -e 's/extension=wddx.so/;extension=wddx.so/' /etc/php/${PHP_P}.${PHP_S}/fpm/conf.d/20-wddx.ini
     NEWKEY='listen.backlog = 4096'
     line_change 'listen.backlog' ${FPMCONF} "${NEWKEY}"
     #TODO: FETCH SAME PHP INI
@@ -669,11 +668,11 @@ centos_install_php(){
     echoG 'Install PHP & Packages'  
     /usr/bin/yum install -y http://rpms.remirepo.net/enterprise/remi-release-7.rpm >/dev/null 2>&1
     /usr/bin/yum install -y yum-utils >/dev/null 2>&1
-    /usr/bin/yum-config-manager --enable remi-php72 >/dev/null 2>&1
-    /usr/bin/yum install -y php-common php-pdo php-gd php-mbstring php-mysqlnd php-litespeed php-opcache php-pecl-zip php-tidy php-gmp \
-                   php-bcmath php-enchant php-cli php-json php-xml php php-fpm php-recode php-soap php-xmlrpc php-sodium \
-                   php-process php-pspell >/dev/null 2>&1
-
+    /usr/bin/yum-config-manager --enable remi-php${PHP_P}${PHP_S} >/dev/null 2>&1
+    for PKG in '' -common -pdo -gd -mbstring -mysqlnd -litespeed -opcache -pecl-zip -tidy -gmp -bcmath \
+        -enchant -cli -json -xml -fpm -recode -soap -xmlrpc -sodium; do 
+        /usr/bin/yum install php${PKG} -y >/dev/null 2>&1
+    done
     sed -i -e 's/extension=bz2/;extension=bz2/' /etc/php.d/20-bz2.ini
     sed -i -e 's/extension=pdo_sqlite/;extension=pdo_sqlite/' /etc/php.d/30-pdo_sqlite.ini
     sed -i -e 's/extension=shmop/;extension=shmop/' /etc/php.d/20-shmop.ini
@@ -681,7 +680,7 @@ centos_install_php(){
     sed -i -e 's/extension=wddx/;extension=wddx/' /etc/php.d/30-wddx.ini  
     
     mkdir -p /var/run/php/
-    NEWKEY='listen = /var/run/php/php7.2-fpm.sock'
+    NEWKEY="listen = /var/run/php/php${PHP_P}.${PHP_S}-fpm.sock"
     line_change 'listen = ' ${FPMCONF} "${NEWKEY}"    
     NEWKEY="listen.owner = ${USER}"
     line_change 'listen.owner = ' ${FPMCONF} "${NEWKEY}"
@@ -770,7 +769,7 @@ EOC
     else
         echo "mysql access deny, skip SQL root & wordpress setup!"
     fi
-    mkdir ${CUSTOM_WP}
+    mkdir -p ${CUSTOM_WP}
     cd ${SCRIPTPATH}/
 ### Install 1kb static file
     if [ ! -e ${DOCROOT}/1kstatic.html ]; then
@@ -879,7 +878,8 @@ setup_apache(){
         echo "Protocols h2 http/1.1" >> /etc/httpd/conf/httpd.conf
         sed -i '/LoadModule mpm_prefork_module/s/^/#/g' /etc/httpd/conf.modules.d/00-mpm.conf
         sed -i '/LoadModule mpm_event_module/s/^#//g' /etc/httpd/conf.modules.d/00-mpm.conf
-        sed -i 's+SetHandler application/x-httpd-php+SetHandler proxy:unix:/var/run/php/php7.2-fpm.sock|fcgi://localhost+g' /etc/httpd/conf.d/php.conf
+        sed -i "s+SetHandler application/x-httpd-php+SetHandler proxy:unix:/var/run/php/php${PHP_P}.${PHP_S}-fpm.sock|fcgi://localhost+g" \
+            /etc/httpd/conf.d/php.conf
         cp ../../webservers/apache/conf/deflate.conf ${APADIR}/conf.d
         cp ../../webservers/apache/conf/default-ssl.conf ${APADIR}/conf.d
         sed -i '/ErrorLog/s/^/#/g' /etc/httpd/conf.d/default-ssl.conf
@@ -888,7 +888,7 @@ setup_apache(){
         echoG 'Setting Apache Config'
         cd ${SCRIPTPATH}/
         a2enmod proxy_fcgi >/dev/null 2>&1
-        a2enconf php7.2-fpm >/dev/null 2>&1
+        a2enconf php${PHP_P}.${PHP_S}-fpm >/dev/null 2>&1
         a2enmod mpm_event >/dev/null 2>&1
         a2enmod ssl >/dev/null 2>&1
         a2enmod http2 >/dev/null 2>&1
@@ -897,8 +897,8 @@ setup_apache(){
         if [ ! -e ${APADIR}/sites-enabled/000-default-ssl.conf ]; then
             ln -s ${APADIR}/sites-available/default-ssl.conf ${APADIR}/sites-enabled/000-default-ssl.conf
         fi
-        if [ ! -e ${APADIR}/conf-enabled/php7.2-fpm.conf ]; then 
-            ln -s ${APADIR}/conf-available/php7.2-fpm.conf ${APADIR}/conf-enabled/php7.2-fpm.conf 
+        if [ ! -e ${APADIR}/conf-enabled/php${PHP_P}.${PHP_S}-fpm.conf ]; then 
+            ln -s ${APADIR}/conf-available/php${PHP_P}.${PHP_S}-fpm.conf ${APADIR}/conf-enabled/php${PHP_P}.${PHP_S}-fpm.conf 
         fi    
     fi    
 }
@@ -912,7 +912,7 @@ setup_lsws(){
     cp ../../webservers/lsws/conf/vhconf.xml ${LSDIR}/DEFAULT/conf/
     if [ ${OSNAME} = 'centos' ]; then
         sed -i "s/www-data/${USER}/g" ${LSDIR}/conf/httpd_config.xml
-        sed -i "s|/usr/local/lsws/lsphp72/bin/lsphp|/usr/bin/lsphp|g" ${LSDIR}/conf/httpd_config.xml
+        sed -i "s|/usr/local/lsws/lsphp${PHP_P}${PHP_S}/bin/lsphp|/usr/bin/lsphp|g" ${LSDIR}/conf/httpd_config.xml
     fi    
     ### Set wordpress virtual host
     mkdir -p ${LSDIR}/WORDPRESS/conf
@@ -940,7 +940,7 @@ setup_ols(){
     echoG 'Setting OpenLiteSpeed Config'
     cd ${SCRIPTPATH}/
     mkdir -p ${OLSDIR}/conf/vhosts/Wordpress
-    mkdir ${OLSDIR}/wordpress
+    mkdir -p ${OLSDIR}/wordpress
     backup_old ${OLSDIR}/conf/httpd_config.conf
     backup_old ${OLSDIR}/Example/conf/vhconf.conf
     cp ../../webservers/openlitespeed/conf/httpd_config.conf ${OLSDIR}/conf/
@@ -948,7 +948,7 @@ setup_ols(){
     cp ../../webservers/openlitespeed/conf/wordpress.conf ${OLSDIR}/conf/vhosts/Wordpress/
     if [ ${OSNAME} = 'centos' ]; then
         sed -i "s/www-data/${USER}/g" ${OLSDIR}/conf/httpd_config.conf
-        sed -i "s|/usr/local/lsws/lsphp72/bin/lsphp|/usr/bin/lsphp|g" ${OLSDIR}/conf/httpd_config.conf
+        sed -i "s|/usr/local/lsws/lsphp${PHP_P}${PHP_S}/bin/lsphp|/usr/bin/lsphp|g" ${OLSDIR}/conf/httpd_config.conf
     fi
     chown -R lsadm:lsadm ${OLSDIR}/conf/vhosts/Wordpress
     change_owner ${OLSDIR}/cachedata
@@ -1034,5 +1034,6 @@ main(){
     display_pwd
     mvexscript '../../tools/switch.sh' "${CMDFD}/"
     mvexscript '../../tools/monitor.sh' "${CMDFD}/"
+    mvexscript '../../tools/customwp.sh' "${CMDFD}/"
 }
 main
