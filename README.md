@@ -3,7 +3,7 @@
 
 # Preparation 
   - This test requires two servers -   
-            - First one is where requests go(Test Server)
+            - First one is where requests go(Test Server)   
             - The second one is where the requests come from (Client Server)
   - You must have root-level access on both servers.
   - TCP 22, 80, 443, and 5001 and UDP 443 must be open and accessible on both the servers.
