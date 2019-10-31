@@ -2,7 +2,7 @@
 [<img src="https://img.shields.io/badge/Made%20with-BASH-orange.svg">](https://en.wikipedia.org/wiki/Bash_(Unix_shell)) 
 
 # Preparation 
-  - This test requires two servers - 
+  - This test requires two servers -   
             - First one is where requests go(Test Server)
             - The second one is where the requests come from (Client Server)
   - You must have root-level access on both servers.
