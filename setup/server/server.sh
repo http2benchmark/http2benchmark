@@ -876,6 +876,7 @@ setup_apache(){
         echoG 'Setting Apache Config'
         cd ${SCRIPTPATH}/
         echo "Protocols h2 http/1.1" >> /etc/httpd/conf/httpd.conf
+        sed -i '/logs\/access_log" common/s/^/#/' /etc/httpd/conf/httpd.conf
         sed -i '/LoadModule mpm_prefork_module/s/^/#/g' /etc/httpd/conf.modules.d/00-mpm.conf
         sed -i '/LoadModule mpm_event_module/s/^#//g' /etc/httpd/conf.modules.d/00-mpm.conf
         sed -i "s+SetHandler application/x-httpd-php+SetHandler proxy:unix:/var/run/php/php${PHP_P}.${PHP_S}-fpm.sock|fcgi://localhost+g" \
@@ -892,6 +893,7 @@ setup_apache(){
         a2enmod mpm_event >/dev/null 2>&1
         a2enmod ssl >/dev/null 2>&1
         a2enmod http2 >/dev/null 2>&1
+        a2disconf other-vhosts-access-log >/dev/null 2>&1
         cp ../../webservers/apache/conf/deflate.conf ${APADIR}/mods-available
         cp ../../webservers/apache/conf/default-ssl.conf ${APADIR}/sites-available
         if [ ! -e ${APADIR}/sites-enabled/000-default-ssl.conf ]; then
@@ -900,6 +902,7 @@ setup_apache(){
         if [ ! -e ${APADIR}/conf-enabled/php${PHP_P}.${PHP_S}-fpm.conf ]; then 
             ln -s ${APADIR}/conf-available/php${PHP_P}.${PHP_S}-fpm.conf ${APADIR}/conf-enabled/php${PHP_P}.${PHP_S}-fpm.conf 
         fi    
+        sed -i '/ CustomLog/s/^/#/' ${APADIR}/sites-enabled/000-default.conf
     fi    
 }
 ### Config LSWS
