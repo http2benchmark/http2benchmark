@@ -15,8 +15,8 @@ OLSDIR='/usr/local/lsws'
 CADDIR='/etc/caddy'
 HTODIR='/etc/h2o'
 FPMCONF='/etc/php-fpm.d/www.conf'
-USER='www-data'
-GROUP='www-data'
+USER=''
+GROUP=''
 CERTDIR='/etc/ssl'
 MARIAVER='10.3'
 PHP_P='7'
@@ -26,6 +26,9 @@ SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 SERVER_LIST="apache lsws nginx openlitespeed caddy h2o"
 DOMAIN_NAME='benchmark.com'
 WP_DOMAIN_NAME='wordpress.benchmark.com'
+OSNAMEVER=''
+OSNAME=''
+OSVER=''
 declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx [openlitespeed]=wp_openlitespeed [caddy]=wp_caddy [h2o]=wp_h2o )
 
 silent() {
@@ -49,7 +52,6 @@ clean_log_fd(){
     rm -f ${SERVERACCESS}  
 }
 
-### Tools
 echoY() {
     echo -e "\033[38;5;148m${1}\033[39m"
 }
@@ -83,30 +85,90 @@ line_change(){
     fi  
 }
 
-check_system(){
+check_os()
+{
+    OSTYPE=$(uname -m)
+    MARIADBCPUARCH=
     if [ -f /etc/redhat-release ] ; then
-        grep -i fedora /etc/redhat-release >/dev/null 2>&1
-        if [ ${?} = 1 ]; then
+        OSVER=$(cat /etc/redhat-release | awk '{print substr($4,1,1)}')
+        if [ ${?} = 0 ] ; then
+            OSNAMEVER=CENTOS${OSVER}
             OSNAME=centos
-            USER='apache'
-            GROUP='apache'
-            REPOPATH='/etc/yum.repos.d'
-            APACHENAME='httpd'
-            APADIR='/etc/httpd'
-            RED_VER=$(rpm -q --whatprovides redhat-release)
+            rpm -ivh http://rpms.litespeedtech.com/centos/litespeed-repo-1.1-1.el${OSVER}.noarch.rpm >/dev/null 2>&1
+        fi
+    elif [ -f /etc/lsb-release ] ; then
+        OSNAME=ubuntu
+        wget -qO - http://rpms.litespeedtech.com/debian/enable_lst_debain_repo.sh | bash >/dev/null 2>&1
+        UBUNTU_V=$(grep 'DISTRIB_RELEASE' /etc/lsb-release | awk -F '=' '{print substr($2,1,2)}')
+        if [ ${UBUNTU_V} = 14 ] ; then
+            OSNAMEVER=UBUNTU14
+            OSVER=trusty
+            MARIADBCPUARCH="arch=amd64,i386,ppc64el"
+        elif [ ${UBUNTU_V} = 16 ] ; then
+            OSNAMEVER=UBUNTU16
+            OSVER=xenial
+            MARIADBCPUARCH="arch=amd64,i386,ppc64el"
+        elif [ ${UBUNTU_V} = 18 ] ; then
+            OSNAMEVER=UBUNTU18
+            OSVER=bionic
+            MARIADBCPUARCH="arch=amd64"
+        fi
+    elif [ -f /etc/debian_version ] ; then
+        OSNAME=debian
+        wget -O - http://rpms.litespeedtech.com/debian/enable_lst_debain_repo.sh | bash
+        DEBIAN_V=$(awk -F '.' '{print $1}' /etc/debian_version)
+        if [ ${DEBIAN_V} = 7 ] ; then
+            OSNAMEVER=DEBIAN7
+            OSVER=wheezy
+            MARIADBCPUARCH="arch=amd64,i386"
+        elif [ ${DEBIAN_V} = 8 ] ; then
+            OSNAMEVER=DEBIAN8
+            OSVER=jessie
+            MARIADBCPUARCH="arch=amd64,i386"
+        elif [ ${DEBIAN_V} = 9 ] ; then
+            OSNAMEVER=DEBIAN9
+            OSVER=stretch
+            MARIADBCPUARCH="arch=amd64,i386"
+        elif [ ${DEBIAN_V} = 10 ] ; then
+            OSNAMEVER=DEBIAN10
+            OSVER=buster
+        fi
+    fi
+    if [ "${OSNAMEVER}" = "" ] ; then
+        echoR "Sorry, currently script only supports Centos(6-7), Debian(7-10) and Ubuntu(14,16,18)."
+        exit 1
+    else
+        if [ "${OSNAME}" = "centos" ] ; then
+            echoG "Current platform is ${OSNAME} ${OSVER}"
+            if [ ${OSVER} = 8 ]; then
+                echoR "Sorry, currently script only supports Centos(6-7), exit!!" 
+                ### Many package/repo are not ready for it.
+            fi    
         else
-            echoR 'Please use CentOS or Ubuntu OS'
-        fi    
-    elif [ -f /etc/lsb-release ] || [ -f /etc/debian_version ]; then
-        OSNAME=ubuntu 
+            export DEBIAN_FRONTEND=noninteractive
+            echoG "Current platform is ${OSNAMEVER} ${OSNAME} ${OSVER}."
+        fi
+    fi
+}
+check_os
+
+path_update(){
+    if [ "${OSNAME}" = "centos" ] ; then
+        USER='apache'
+        GROUP='apache'
+        REPOPATH='/etc/yum.repos.d'
+        APACHENAME='httpd'
+        APADIR='/etc/httpd'
+        RED_VER=$(rpm -q --whatprovides redhat-release)
+    elif [ "${OSNAME}" = 'ubuntu' ] || [ "${OSNAME}" = 'debian' ]; then
+        USER='www-data'
+        GROUP='www-data'
         REPOPATH='/etc/apt/sources.list.d'
         APACHENAME='apache2'
         FPMCONF="/etc/php/${PHP_P}.${PHP_S}/fpm/pool.d/www.conf"
-    else 
-        echoR 'Please use CentOS or Ubuntu OS'
     fi      
 }
-check_system
+path_update
 
 KILL_PROCESS(){
     PROC_NUM=$(pidof ${1})
@@ -229,16 +291,16 @@ network_performance(){
         echoR 'System not support sysctl'    
     fi
 }
-
-ubuntu_install_pkg(){
-### Basic Packages
+ubuntu_pkg_basic(){
     echoG 'Install basic packages'
     if [ ! -e /bin/wget ]; then 
         silent apt-get install lsb-release -y
         silent apt-get install curl wget -y
     fi
     silent apt-get install curl net-tools software-properties-common -y
-### Install postfix
+}
+
+ubuntu_pkg_postfix(){
     if [ -e /usr/sbin/postfix ]; then 
         echoG 'Postfix already installed'
     else    
@@ -246,9 +308,10 @@ ubuntu_install_pkg(){
         DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::='--force-confdef' \
         -o Dpkg::Options::='--force-confold' install postfix >/dev/null 2>&1
         [[ -e /usr/sbin/postfix ]] && echoG 'Install postfix Success' || echoR 'Install postfix Failed'
-    fi    
+    fi  
+}
 
-### System Packages
+ubuntu_pkg_system(){
     if [ -e /usr/sbin/dmidecode ]; then
         echoG 'dmidecode already installed'
     else
@@ -256,8 +319,9 @@ ubuntu_install_pkg(){
         silent apt-get install dmidecode -y
         [[ -e /usr/sbin/dmidecode ]] && echoG 'Install dmidecode Success' || echoR 'Install dmidecode Failed' 
     fi 
+}
 
-### Network Packages
+ubuntu_pkg_system(){
     if [ -e /usr/bin/iperf ]; then 
         echoG 'Iperf already installed'
     else    
@@ -272,7 +336,9 @@ ubuntu_install_pkg(){
         silent apt-get install net-tools -y
         [[ -e /bin/netstat ]] && echoG 'Install netstat Success' || echoR 'Install netstat Failed' 
     fi    
-### Mariadb
+}
+
+ubuntu_pkg_mariadb(){
     apt list --installed 2>/dev/null | grep mariadb-server-${MARIAVER} >/dev/null 2>&1
     if [ ${?} = 0 ]; then 
         echoG "Mariadb ${MARIAVER} already installed"
@@ -298,10 +364,10 @@ ubuntu_install_pkg(){
     else 
         echoR "[Failed] Mariadb is: ${DBSTATUS}"
     fi    
-}
+}      
 
-centos_install_pkg(){
-### Basic Packages
+
+centos_pkg_basic(){
     echoG 'Install basic packages'
     if [ ! -e /bin/wget ]; then 
         silent yum install epel-release -y
@@ -316,9 +382,10 @@ centos_install_pkg(){
     fi
     if [ ! -e /usr/bin/curl ]; then 
         silent yum install curl -y
-    fi
+    fi    
+}
 
-### Install postfix
+centos_pkg_postfix(){
     if [ -e /usr/sbin/postfix ]; then 
         echoG 'Postfix already installed'
     else    
@@ -326,8 +393,9 @@ centos_install_pkg(){
         yum install postfix -y >/dev/null 2>&1
         [[ -e /usr/sbin/postfix ]] && echoG 'Install postfix Success' || echoR 'Install postfix Failed'
     fi    
+}
 
-### System Packages
+centos_pkg_system(){
     if [ -e /usr/sbin/dmidecode ]; then
         echoG 'dmidecode already installed'
     else
@@ -335,13 +403,23 @@ centos_install_pkg(){
         silent yum install dmidecode -y
         [[ -e /usr/sbin/dmidecode ]] && echoG 'Install dmidecode Success' || echoR 'Install dmidecode Failed' 
     fi  
-### Network Packages
-    if [ -e /usr/bin/iperf ]; then 
+}
+
+centos_pkg_network(){
+    if [ -e /usr/bin/iperf ] || [ -e /usr/bin/iperf3 ]; then 
         echoG 'Iperf already installed'
     else    
         echoG 'Install Iperf'
-        silent yum install iperf -y
-        [[ -e /usr/bin/iperf ]] && echoG 'Install Iperf Success' || echoR 'Install Iperf Failed' 
+        if [ "${OSNAMEVER}" = "CENTOS8" ] ; then
+            silent yum install iperf3 -y
+        else
+            silent yum install iperf -y
+        fi    
+        if [ -e /usr/bin/iperf ] || [ -e /usr/bin/iperf3 ]; then 
+            echoG 'Install Iperf Success'
+        else
+            echoR 'Install Iperf Failed' 
+        fi    
     fi
     if [ -e /usr/bin/netstat ]; then
         echoG 'netstat already installed'
@@ -349,10 +427,11 @@ centos_install_pkg(){
         echoG 'Install netstat'
         silent yum install net-tools -y
         [[ -e /usr/bin/netstat ]] && echoG 'Install netstat Success' || echoR 'Install netstat Failed' 
-    fi     
-### Mariadb
-    silent rpm -qa | grep mariadb-server-${MARIAVER}
+    fi         
+}    
 
+centos_pkg_mariadb(){
+    silent rpm -qa | grep mariadb-server-${MARIAVER}
     if [ ${?} = 0 ]; then 
         echoG "Mariadb ${MARIAVER} already installed"
     else
@@ -360,16 +439,25 @@ centos_install_pkg(){
             echoY 'Remove old mariadb'
             rm_old_pkg mariadb-server
         fi
-
         echoG "InstallMariadb ${MARIAVER}"
+        if [ "${OSTYPE}" != "x86_64" ] ; then
+            CENTOSVER=centos${OSVER}-x86
+        else
+            CENTOSVER=centos${OSVER}-amd64
+        fi        
         cat > ${REPOPATH}/MariaDB.repo << EOM
 [mariadb]
 name = MariaDB
-baseurl = http://yum.mariadb.org/${MARIAVER}/centos7-amd64
+baseurl = http://yum.mariadb.org/${MARIAVER}/${CENTOSVER}
 gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
 gpgcheck=1
 EOM
-        silent yum install MariaDB-server MariaDB-client -y         
+        if [ "${OSNAMEVER}" = "CENTOS8" ] ; then
+            silent yum install -y boost-program-options
+            silent yum --disablerepo=AppStream install -y MariaDB-server MariaDB-client
+        else
+            silent yum install MariaDB-server MariaDB-client -y
+        fi
     fi
     systemctl start mariadb
     local DBSTATUS=$(systemctl is-active mariadb)
@@ -377,8 +465,11 @@ EOM
         echoG "MARIADB is: ${DBSTATUS}"
     else 
         echoR "[Failed] Mariadb is: ${DBSTATUS}"
+        echoR "You may want to manually run the command 'yum -y install MariaDB-server MariaDB-client' to check. Aborting installation!"
+        exit 1        
     fi    
-}
+}    
+
 
 set_mariadb_root(){
     SQLVER=$(mysql -u root -e 'status' | grep 'Server version')
@@ -393,7 +484,6 @@ set_mariadb_root(){
     fi
 }
 
-### Install Apache
 ubuntu_install_apache(){
     echoG 'Install Apache Web Server'
     if [ -e /usr/sbin/${APACHENAME} ]; then 
@@ -422,11 +512,10 @@ centos_install_apache(){
         KILL_PROCESS ${APACHENAME}  
     fi    
     cd ${REPOPATH}
-    wget https://repo.codeit.guru/codeit.el`rpm -q --qf "%{VERSION}" $(rpm -q --whatprovides redhat-release)`.repo >/dev/null 2>&1 
-    #if [ ! -e ${REPOPATH}/codeit.el$(rpm -q --qf "%{VERSION}" ${RED_VER}).repo ]; then
-    #    echoR "[Failed] to add ${APACHENAME} repository"
-    #fi 
-    silent yum install ${APACHENAME} mod_ssl mod_fcgi -y
+    if [ "${OSNAMEVER}" != "CENTOS8" ] ; then
+        wget https://repo.codeit.guru/codeit.el`rpm -q --qf "%{VERSION}" $(rpm -q --whatprovides redhat-release)`.repo >/dev/null 2>&1 
+    fi    
+    silent yum install ${APACHENAME} mod_ssl -y # mod_fcgi
     sleep 1
     silent systemctl start ${APACHENAME}
     SERVERV=$(echo $(httpd -v | grep version) | awk '{print substr ($3,8,9)}')
@@ -491,7 +580,6 @@ centos_install_lsws(){
     install_lsws
 }
 
-### Install OpenLiteSpeed
 ubuntu_install_ols(){
     echoG 'Install openLiteSpeed Web Server'
     ubuntu_reinstall 'openlitespeed'
@@ -518,7 +606,6 @@ centos_install_ols(){
     checkweb ols
 }
 
-### Install Nginx
 ubuntu_install_nginx(){
     echoG 'Install Nginx Web Server'
     if [ -e /usr/sbin/nginx ]; then 
@@ -562,7 +649,6 @@ EOM
     checkweb nginx
 }
 
-### Install h2o (v2)
 ubuntu_install_h2o() {
     if [ -e /usr/bin/h2o ]; then 
         echo 'h2o already exist, skip!'
@@ -597,7 +683,6 @@ EOM
     fi
 }
 
-### Install Caddy
 ubuntu_install_caddy(){
     if [ -e /usr/local/bin/caddy ]; then 
         echo 'Caddy already exist, skip!'
@@ -622,7 +707,6 @@ centos_install_caddy(){
     fi   
 }
 
-### Reinstall tools
 ubuntu_reinstall(){
     apt --installed list 2>/dev/null | grep ${1} >/dev/null
     if [ ${?} = 0 ]; then
@@ -666,7 +750,7 @@ ubuntu_install_php(){
 
 centos_install_php(){
     echoG 'Install PHP & Packages'  
-    /usr/bin/yum install -y http://rpms.remirepo.net/enterprise/remi-release-7.rpm >/dev/null 2>&1
+    /usr/bin/yum install -y http://rpms.remirepo.net/enterprise/remi-release-${OSVER}.rpm >/dev/null 2>&1
     /usr/bin/yum install -y yum-utils >/dev/null 2>&1
     /usr/bin/yum-config-manager --enable remi-php${PHP_P}${PHP_S} >/dev/null 2>&1
     for PKG in '' -common -pdo -gd -mbstring -mysqlnd -litespeed -opcache -pecl-zip -tidy -gmp -bcmath \
@@ -675,7 +759,7 @@ centos_install_php(){
     done
     sed -i -e 's/extension=bz2/;extension=bz2/' /etc/php.d/20-bz2.ini
     sed -i -e 's/extension=pdo_sqlite/;extension=pdo_sqlite/' /etc/php.d/30-pdo_sqlite.ini
-    sed -i -e 's/extension=shmop/;extension=shmop/' /etc/php.d/20-shmop.ini
+    #sed -i -e 's/extension=shmop/;extension=shmop/' /etc/php.d/20-shmop.ini
     sed -i -e 's/extension=sqlite3/;extension=sqlite3/' /etc/php.d/20-sqlite3.ini
     sed -i -e 's/extension=wddx/;extension=wddx/' /etc/php.d/30-wddx.ini  
     
@@ -693,7 +777,6 @@ centos_install_php(){
     #TODO: FETCH SAME PHP INI       
 }    
 
-### Setup Test site
 install_target(){
 ### Install WordPress + Cache
     ### WP CLI
@@ -709,14 +792,12 @@ install_target(){
             mv wp-cli.phar /usr/local/bin/wp
         fi
     fi
-    ### Update root password
     ######Mariadb
     silent mysql -u root -e 'status'
     if [ ${?} = 0 ]; then
         set_mariadb_root
         for SERVER in ${SERVER_LIST}; do
             WP_NAME=${WEB_ARR["${SERVER}"]}
-                ### DownLoad WordPress
             if [ -e ${DOCROOT}/${WP_NAME}/wp-config.php ]; then 
                 echoG 'WordPress already exist'
             else       
@@ -730,7 +811,6 @@ install_target(){
 CREATE DATABASE ${WP_NAME};
 grant all privileges on ${WP_NAME}.* to 'wordpress'@'localhost' identified by '${MYSQL_USER_PASS}';
 EOC
-                ### Install WordPress via WP CLI
                 echoG 'Install WordPress via CLI'
                 wp core config \
                     --dbname=${WP_NAME} \
@@ -748,7 +828,6 @@ EOC
                     --allow-root \
                     --quiet      
 
-                ### Install Cache via WP CLI
                 if [ "${SERVER}" = 'apache' ] || [ "${SERVER}" = 'caddy' ] || [ "${SERVER}" = 'h2o' ]; then
                     wp plugin install w3-total-cache \
                         --allow-root \
@@ -810,12 +889,10 @@ EOC
         echoG 'phpinfo.php already exist' 
     fi
 
-### Remove index.html
     rm -f ${DOCROOT}/index.html
-
+    change_owner ${DOCROOT}
 }
 
-### Setup Cert
 gen_selfsigned_cert(){
     KEYNAME="${CERTDIR}/http2benchmark.key"
     CERTNAME="${CERTDIR}/http2benchmark.crt"
@@ -841,10 +918,8 @@ csrconf
 }
 
 check_spec(){
-    ### Total Memory
     echo -n 'Test Server - Memory Size: '                             | tee -a ${ENVLOG}
     echoY $(awk '$1 == "MemTotal:" {print $2/1024 "MB"}' /proc/meminfo) | tee -a ${ENVLOG}
-    ### Total CPU
     echo -n 'Test Server - CPU number: '                              | tee -a ${ENVLOG}
     echoY $(lscpu | grep '^CPU(s):' | awk '{print $NF}')                | tee -a ${ENVLOG}
     echo -n 'Test Server - CPU Thread: '                              | tee -a ${ENVLOG}
@@ -852,7 +927,8 @@ check_spec(){
     CPUNUM=$(nproc)
 }
 
-cpuprocess(){
+setup_process(){
+    check_spec
     if [[ ${CPUNUM} > 1 ]]; then
         cd ${SCRIPTPATH}/
         ### Apache
@@ -866,65 +942,80 @@ cpuprocess(){
     fi
 }
 
+ubuntu_setup_process(){
+    setup_process
+}
+
+centos_setup_process(){
+    setup_process
+}
+
 change_owner(){
     chown -R ${USER}:${GROUP} ${1}
 }
 
-### Config Apache
-setup_apache(){
-    if [ ${OSNAME} = 'centos' ]; then
-        echoG 'Setting Apache Config'
-        cd ${SCRIPTPATH}/
-        echo "Protocols h2 http/1.1" >> /etc/httpd/conf/httpd.conf
-        sed -i '/logs\/access_log" common/s/^/#/' /etc/httpd/conf/httpd.conf
-        sed -i '/LoadModule mpm_prefork_module/s/^/#/g' /etc/httpd/conf.modules.d/00-mpm.conf
-        sed -i '/LoadModule mpm_event_module/s/^#//g' /etc/httpd/conf.modules.d/00-mpm.conf
-        sed -i "s+SetHandler application/x-httpd-php+SetHandler proxy:unix:/var/run/php/php${PHP_P}.${PHP_S}-fpm.sock|fcgi://localhost+g" \
-            /etc/httpd/conf.d/php.conf
-        cp ../../webservers/apache/conf/deflate.conf ${APADIR}/conf.d
-        cp ../../webservers/apache/conf/default-ssl.conf ${APADIR}/conf.d
-        sed -i '/ErrorLog/s/^/#/g' /etc/httpd/conf.d/default-ssl.conf
-        service httpd restart
-     else
-        echoG 'Setting Apache Config'
-        cd ${SCRIPTPATH}/
-        a2enmod proxy_fcgi >/dev/null 2>&1
-        a2enconf php${PHP_P}.${PHP_S}-fpm >/dev/null 2>&1
-        a2enmod mpm_event >/dev/null 2>&1
-        a2enmod ssl >/dev/null 2>&1
-        a2enmod http2 >/dev/null 2>&1
-        a2disconf other-vhosts-access-log >/dev/null 2>&1
-        cp ../../webservers/apache/conf/deflate.conf ${APADIR}/mods-available
-        cp ../../webservers/apache/conf/default-ssl.conf ${APADIR}/sites-available
-        if [ ! -e ${APADIR}/sites-enabled/000-default-ssl.conf ]; then
-            ln -s ${APADIR}/sites-available/default-ssl.conf ${APADIR}/sites-enabled/000-default-ssl.conf
-        fi
-        if [ ! -e ${APADIR}/conf-enabled/php${PHP_P}.${PHP_S}-fpm.conf ]; then 
-            ln -s ${APADIR}/conf-available/php${PHP_P}.${PHP_S}-fpm.conf ${APADIR}/conf-enabled/php${PHP_P}.${PHP_S}-fpm.conf 
-        fi    
-        sed -i '/ CustomLog/s/^/#/' ${APADIR}/sites-enabled/000-default.conf
+ubuntu_setup_apache(){
+    echoG 'Setting Apache Config'
+    cd ${SCRIPTPATH}/
+    a2enmod proxy_fcgi >/dev/null 2>&1
+    a2enconf php${PHP_P}.${PHP_S}-fpm >/dev/null 2>&1
+    a2enmod mpm_event >/dev/null 2>&1
+    a2enmod ssl >/dev/null 2>&1
+    a2enmod http2 >/dev/null 2>&1
+    a2disconf other-vhosts-access-log >/dev/null 2>&1
+    cp ../../webservers/apache/conf/deflate.conf ${APADIR}/mods-available
+    cp ../../webservers/apache/conf/default-ssl.conf ${APADIR}/sites-available
+    if [ ! -e ${APADIR}/sites-enabled/000-default-ssl.conf ]; then
+        ln -s ${APADIR}/sites-available/default-ssl.conf ${APADIR}/sites-enabled/000-default-ssl.conf
+    fi
+    if [ ! -e ${APADIR}/conf-enabled/php${PHP_P}.${PHP_S}-fpm.conf ]; then 
+        ln -s ${APADIR}/conf-available/php${PHP_P}.${PHP_S}-fpm.conf ${APADIR}/conf-enabled/php${PHP_P}.${PHP_S}-fpm.conf 
     fi    
+    sed -i '/ CustomLog/s/^/#/' ${APADIR}/sites-enabled/000-default.conf                                                                           
 }
-### Config LSWS
-setup_lsws(){
+
+centos_setup_apache(){
+    echoG 'Setting Apache Config'
+    cd ${SCRIPTPATH}/
+    echo "Protocols h2 http/1.1" >> /etc/httpd/conf/httpd.conf
+    sed -i '/logs\/access_log" common/s/^/#/' /etc/httpd/conf/httpd.conf
+    sed -i '/LoadModule mpm_prefork_module/s/^/#/g' /etc/httpd/conf.modules.d/00-mpm.conf
+    sed -i '/LoadModule mpm_event_module/s/^#//g' /etc/httpd/conf.modules.d/00-mpm.conf
+    sed -i "s+SetHandler application/x-httpd-php+SetHandler proxy:unix:/var/run/php/php${PHP_P}.${PHP_S}-fpm.sock|fcgi://localhost+g" \
+        /etc/httpd/conf.d/php.conf
+    cp ../../webservers/apache/conf/deflate.conf ${APADIR}/conf.d
+    cp ../../webservers/apache/conf/default-ssl.conf ${APADIR}/conf.d
+    sed -i '/ErrorLog/s/^/#/g' /etc/httpd/conf.d/default-ssl.conf
+    service httpd restart
+}
+ubuntu_setup_lsws(){
     echoG 'Setting LSWS Config'
     cd ${SCRIPTPATH}/
     backup_old ${LSDIR}/conf/httpd_config.xml
     backup_old ${LSDIR}/DEFAULT/conf/vhconf.xml
     cp ../../webservers/lsws/conf/httpd_config.xml ${LSDIR}/conf/
     cp ../../webservers/lsws/conf/vhconf.xml ${LSDIR}/DEFAULT/conf/
-    if [ ${OSNAME} = 'centos' ]; then
-        sed -i "s/www-data/${USER}/g" ${LSDIR}/conf/httpd_config.xml
-        sed -i "s|/usr/local/lsws/lsphp${PHP_P}${PHP_S}/bin/lsphp|/usr/bin/lsphp|g" ${LSDIR}/conf/httpd_config.xml
-    fi    
-    ### Set wordpress virtual host
     mkdir -p ${LSDIR}/WORDPRESS/conf
     backup_old ${LSDIR}/WORDPRESS/conf/wordpress.xml
     cp ../../webservers/lsws/conf/wordpress.xml ${LSDIR}/WORDPRESS/conf/
     chown -R lsadm:lsadm ${LSDIR}/WORDPRESS/conf
 } 
 
-### Config Nginx
+centos_setup_lsws(){
+    echoG 'Setting LSWS Config'
+    cd ${SCRIPTPATH}/
+    backup_old ${LSDIR}/conf/httpd_config.xml
+    backup_old ${LSDIR}/DEFAULT/conf/vhconf.xml
+    cp ../../webservers/lsws/conf/httpd_config.xml ${LSDIR}/conf/
+    cp ../../webservers/lsws/conf/vhconf.xml ${LSDIR}/DEFAULT/conf/
+    sed -i "s/www-data/${USER}/g" ${LSDIR}/conf/httpd_config.xml
+    sed -i "s|/usr/local/lsws/lsphp${PHP_P}${PHP_S}/bin/lsphp|/usr/bin/lsphp|g" ${LSDIR}/conf/httpd_config.xml  
+    mkdir -p ${LSDIR}/WORDPRESS/conf
+    backup_old ${LSDIR}/WORDPRESS/conf/wordpress.xml
+    cp ../../webservers/lsws/conf/wordpress.xml ${LSDIR}/WORDPRESS/conf/
+    chown -R lsadm:lsadm ${LSDIR}/WORDPRESS/conf
+} 
+
 setup_nginx(){
     echoG 'Setting Nginx Config' 
     cd ${SCRIPTPATH}/
@@ -933,13 +1024,18 @@ setup_nginx(){
     cp ../../webservers/nginx/conf/nginx.conf ${NGDIR}/
     cp ../../webservers/nginx/conf/default.conf ${NGDIR}/conf.d/
     sed -i "s/user apache/user ${USER}/g"  ${NGDIR}/nginx.conf
-    ### Set wordpress virtual host
     backup_old ${NGDIR}/wordpress.conf
     cp ../../webservers/nginx/conf/wordpress.conf ${NGDIR}/conf.d/
 }
 
-### Config OpenLiteSpeed
-setup_ols(){
+ubuntu_setup_nginx(){
+    setup_nginx
+}
+centos_setup_nginx(){
+    setup_nginx
+}
+
+ubuntu_setup_ols(){
     echoG 'Setting OpenLiteSpeed Config'
     cd ${SCRIPTPATH}/
     mkdir -p ${OLSDIR}/conf/vhosts/Wordpress
@@ -949,23 +1045,30 @@ setup_ols(){
     cp ../../webservers/openlitespeed/conf/httpd_config.conf ${OLSDIR}/conf/
     cp ../../webservers/openlitespeed/conf/vhconf.conf ${OLSDIR}/conf/vhosts/Example/
     cp ../../webservers/openlitespeed/conf/wordpress.conf ${OLSDIR}/conf/vhosts/Wordpress/
-    if [ ${OSNAME} = 'centos' ]; then
-        sed -i "s/www-data/${USER}/g" ${OLSDIR}/conf/httpd_config.conf
-        sed -i "s|/usr/local/lsws/lsphp${PHP_P}${PHP_S}/bin/lsphp|/usr/bin/lsphp|g" ${OLSDIR}/conf/httpd_config.conf
-    fi
     chown -R lsadm:lsadm ${OLSDIR}/conf/vhosts/Wordpress
     change_owner ${OLSDIR}/cachedata
 } 
 
-### Config Caddy
-setup_caddy(){  
+centos_setup_ols(){
+    echoG 'Setting OpenLiteSpeed Config'
+    cd ${SCRIPTPATH}/
+    mkdir -p ${OLSDIR}/conf/vhosts/Wordpress
+    mkdir -p ${OLSDIR}/wordpress
+    backup_old ${OLSDIR}/conf/httpd_config.conf
+    backup_old ${OLSDIR}/Example/conf/vhconf.conf
+    cp ../../webservers/openlitespeed/conf/httpd_config.conf ${OLSDIR}/conf/
+    cp ../../webservers/openlitespeed/conf/vhconf.conf ${OLSDIR}/conf/vhosts/Example/
+    cp ../../webservers/openlitespeed/conf/wordpress.conf ${OLSDIR}/conf/vhosts/Wordpress/
+    sed -i "s/www-data/${USER}/g" ${OLSDIR}/conf/httpd_config.conf
+    sed -i "s|/usr/local/lsws/lsphp${PHP_P}${PHP_S}/bin/lsphp|/usr/bin/lsphp|g" ${OLSDIR}/conf/httpd_config.conf
+    chown -R lsadm:lsadm ${OLSDIR}/conf/vhosts/Wordpress
+    change_owner ${OLSDIR}/cachedata
+} 
+
+ubuntu_setup_caddy(){  
     echoG 'Setting Caddy Config' 
     cd ${SCRIPTPATH}/
-    if [ ${OSNAME} = 'centos' ]; then
-        CADDY_BIN='/usr/bin/caddy'
-    else
-        CADDY_BIN='/usr/local/bin/caddy'
-    fi
+    CADDY_BIN='/usr/local/bin/caddy'
     setcap 'cap_net_bind_service=+ep' ${CADDY_BIN}
     mkdir -p ${CADDIR}
     backup_old ${CADDIR}/Caddyfile
@@ -979,12 +1082,36 @@ setup_caddy(){
     systemctl daemon-reload    
 }
 
-### Config H2O
+centos_setup_caddy(){  
+    echoG 'Setting Caddy Config' 
+    cd ${SCRIPTPATH}/
+    CADDY_BIN='/usr/bin/caddy'
+    setcap 'cap_net_bind_service=+ep' ${CADDY_BIN}
+    mkdir -p ${CADDIR}
+    backup_old ${CADDIR}/Caddyfile
+    backup_old /etc/systemd/system/caddy.service
+    cp ../../webservers/caddy/conf/Caddyfile ${CADDIR}/
+    cp ../../webservers/caddy/conf/caddy.service /etc/systemd/system/
+    sed -i "s/example.com/${DOMAIN_NAME}/g" ${CADDIR}/Caddyfile
+    sed -i "s/www-data/${USER}/g" /etc/systemd/system/caddy.service
+    sed -i "s|/usr/local/bin/caddy|${CADDY_BIN}|g" /etc/systemd/system/caddy.service
+    change_owner ${CADDIR}
+    systemctl daemon-reload    
+}
+
 setup_h2o(){
     backup_old ${HTODIR}/h2o.conf
     cp ../../webservers/h2o/conf/h2o.conf ${HTODIR}/
     sed -i "s/www-data/${USER}/g"  ${HTODIR}/h2o.conf
 }
+
+ubuntu_setup_h2o(){
+    setup_h2o
+}
+
+centos_setup_h2o(){
+   setup_h2o 
+}    
 
 mvexscript(){
     cd ${SCRIPTPATH}/
@@ -993,9 +1120,37 @@ mvexscript(){
     chmod +x ${CMDFD}/${FILENAME}
 }
 
-ubuntu_main(){
+copy_tools(){
+    mvexscript '../../tools/switch.sh' "${CMDFD}/"
+    mvexscript '../../tools/monitor.sh' "${CMDFD}/"
+    mvexscript '../../tools/customwp.sh' "${CMDFD}/"
+}
+
+prepare(){
+    gen_pwd
+    clean_log_fd
+    create_log_fd
+    gen_selfsigned_cert 
+}
+
+ubuntu_pkg_main(){
+    ubuntu_pkg_basic
+    ubuntu_pkg_postfix
+    ubuntu_pkg_system
+    ubuntu_pkg_mariadb
+}
+
+centos_pkg_main(){
+    centos_pkg_basic
+    centos_pkg_postfix
+    centos_pkg_system
+    centos_pkg_network
+    centos_pkg_mariadb
+}
+
+ubuntu_install_main(){
     ubuntu_sysupdate
-    ubuntu_install_pkg
+    ubuntu_pkg_main
     ubuntu_install_apache
     ubuntu_install_lsws
     ubuntu_install_nginx
@@ -1005,9 +1160,9 @@ ubuntu_main(){
     ubuntu_install_php
 }
 
-centos_main(){
+centos_install_main(){
     centos_sysupdate
-    centos_install_pkg
+    centos_pkg_main
     centos_install_apache
     centos_install_lsws
     centos_install_nginx
@@ -1017,26 +1172,38 @@ centos_main(){
     centos_install_php
 }
 
+ubuntu_setup_main(){
+    ubuntu_setup_apache
+    ubuntu_setup_lsws
+    ubuntu_setup_nginx
+    ubuntu_setup_ols
+    ubuntu_setup_caddy
+    ubuntu_setup_h2o   
+    ubuntu_setup_process 
+}    
+
+centos_setup_main(){
+    centos_setup_apache
+    centos_setup_lsws
+    centos_setup_nginx
+    centos_setup_ols
+    centos_setup_caddy
+    centos_setup_h2o 
+    centos_setup_process   
+}  
+
 main(){
-    gen_pwd
-    clean_log_fd
-    create_log_fd    
-    [[ ${OSNAME} = 'centos' ]] && centos_main || ubuntu_main
-    gen_selfsigned_cert
-    check_spec
+    prepare   
+    if [ ${OSNAME} = 'centos' ]; then 
+        centos_install_main
+        centos_setup_main
+    else
+        ubuntu_install_main
+        ubuntu_setup_main
+    fi
     network_performance
-    setup_apache
-    setup_lsws
-    setup_nginx
-    setup_ols
-    setup_caddy
-    setup_h2o
-    cpuprocess 
     install_target
-    change_owner ${DOCROOT}
     display_pwd
-    mvexscript '../../tools/switch.sh' "${CMDFD}/"
-    mvexscript '../../tools/monitor.sh' "${CMDFD}/"
-    mvexscript '../../tools/customwp.sh' "${CMDFD}/"
+    copy_tools
 }
 main
