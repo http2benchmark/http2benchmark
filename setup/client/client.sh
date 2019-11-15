@@ -41,7 +41,6 @@ clean_log_fd(){
     rm -f ${ENVLOG}
 }
 
-### Tools
 echoY() {
     echo -e "\033[38;5;148m${1}\033[39m"
 }
@@ -59,10 +58,6 @@ echoB()
 echoNG() {
     echo -ne "\033[38;5;71m${1}\033[39m"
 }
-echoCYAN() {
-    echo -e "\033[1;36m${1}\033[0m"
-}
-
 
 linechange(){
     LINENUM=$(grep -n "${1}" ${2} | cut -d: -f 1)
@@ -72,58 +67,80 @@ linechange(){
     fi  
 }
 
-checksystem(){
+check_os()
+{
+    OSTYPE=$(uname -m)
     if [ -f /etc/redhat-release ] ; then
-        OSNAME=centos
-        grep -i fedora /etc/redhat-release >/dev/null 2>&1
-        if [ ${?} = 0 ]; then 
-            OSVER=$(awk '{print $3}' /etc/redhat-release)
+        OSVER=$(cat /etc/redhat-release | awk '{print substr($4,1,1)}')
+        if [ ${?} = 0 ] ; then
+            OSNAMEVER=CENTOS${OSVER}
+            OSNAME=centos
+        fi
+    elif [ -f /etc/lsb-release ] ; then
+        OSNAME=ubuntu
+        UBUNTU_V=$(grep 'DISTRIB_RELEASE' /etc/lsb-release | awk -F '=' '{print substr($2,1,2)}')
+        if [ ${UBUNTU_V} = 14 ] ; then
+            OSNAMEVER=UBUNTU14
+            OSVER=trusty
+        elif [ ${UBUNTU_V} = 16 ] ; then
+            OSNAMEVER=UBUNTU16
+            OSVER=xenial
+        elif [ ${UBUNTU_V} = 18 ] ; then
+            OSNAMEVER=UBUNTU18
+            OSVER=bionic
+        fi
+    elif [ -f /etc/debian_version ] ; then
+        OSNAME=debian
+        DEBIAN_V=$(awk -F '.' '{print $1}' /etc/debian_version)
+        if [ ${DEBIAN_V} = 7 ] ; then
+            OSNAMEVER=DEBIAN7
+            OSVER=wheezy
+        elif [ ${DEBIAN_V} = 8 ] ; then
+            OSNAMEVER=DEBIAN8
+            OSVER=jessie
+        elif [ ${DEBIAN_V} = 9 ] ; then
+            OSNAMEVER=DEBIAN9
+            OSVER=stretch
+        elif [ ${DEBIAN_V} = 10 ] ; then
+            OSNAMEVER=DEBIAN10
+            OSVER=buster
+        fi
+    fi
+    if [ "${OSNAMEVER}" = "" ] ; then
+        echoR "Sorry, currently script only supports Centos(6-7), Debian(7-10) and Ubuntu(14,16,18)."
+        exit 1
+    else
+        if [ "${OSNAME}" = "centos" ] ; then
+            echoG "Current platform is ${OSNAME} ${OSVER}"
+            if [ ${OSVER} = 8 ]; then
+                echoR "Sorry, currently script only supports Centos(6-7), exit!!" 
+                exit 1
+                ### Many package/repo are not ready for it.
+            fi    
         else
-            OSVER=$(awk '{print substr($4,0,1)}' /etc/redhat-release)
-        fi    
-        if [ ${OSVER} -lt 7 ]; then 
-            echoR "Your OS version is under 7, do you want to continue anyway? [y/N] "
-            read TMP_YN
-            if [[ ! "${TMP_YN}" =~ ^(y|Y) ]]; then
-                exit 1
-            fi    
-        fi    
-    elif [ -f /etc/lsb-release ] || [ -f /etc/debian_version ]; then
-        OSNAME=ubuntu 
-        OSVER=$(lsb_release -rs | awk -F. '{ print $1 }')
-        if [ ${OSVER} -lt 18 ]; then 
-            echoR "Your OS version is under 18, do you want to continue anyway? [y/N] "
-            read TMP_YN
-            if [[ ! "${TMP_YN}" =~ ^(y|Y) ]]; then
-                exit 1
-            fi    
-        fi          
-    else 
-        echoR 'Please use CentOS/Fedora or Ubuntu/Debian'
-    fi      
+            export DEBIAN_FRONTEND=noninteractive
+            echoG "Current platform is ${OSNAMEVER} ${OSNAME} ${OSVER}."
+        fi
+    fi
 }
-checksystem
+
+
 help_message() {
     case ${1} in
         "1")
-        echoG 'Client installation finished. For more information, please run bash client.sh -h'
-        echoY "You can now run a benchmark with this command: ${BENCH_SH}"
+        echoG "Client installation finished. For more information, please run command: ${BENCH_SH} -h"
+        echo ''
+        echo "You can now run a benchmark with this command:" $(echoY "${BENCH_SH}")
         echo ''
         ;;
         "2")
-        echo 'Please add the following key to ~/.ssh/authorized_keys on the Test server'
+        echo "Please add the following key to $(echoB ~/.ssh/authorized_keys) on the Test server"
         echoY "$(cat ~/.ssh/${SSHKEYNAME}.pub)" 
         ;;
         "3")
-        echoCYAN "To view the site from your desktop browser, please add the following entries to your ${HOST_FILE} file: "
-        echoY "$(cat ${TEST_IP}) ${DOMAIN_NAME}"
-        echoY "$(cat ${TEST_IP}) ${WP_DOMAIN_NAME}"
-
-        echoCYAN "To customize the WordPress domain, please run the following command:: "
-        echoY "/opt/tools/custom.sh domain example.com"
-
-        echoCYAN "To get custom client server/tool information, please run the following command: "
-        echoY "${BENCH_SH} -h"
+        echo 'This script will install multiple benchmark tools and copy the benchmark script for testing'
+        echo "Once client installation finished, you can get more information from $(echoY "${BENCH_SH} -h")"
+        ;;
     esac
 }
 
@@ -146,7 +163,6 @@ centos_sysupdate(){
 }    
 
 gen_sshkey(){
-### bench_rsa, bench_rsa.pub
     echoG 'Generate client pub key'
     if [ -e ~/.ssh/${SSHKEYNAME} ]; then 
         rm -f ~/.ssh/${SSHKEYNAME}*
@@ -157,11 +173,9 @@ gen_sshkey(){
 }
 
 ubuntu_install_pkg(){
-### Basic Packages
     if [ ! -e /bin/wget ]; then 
         silent apt-get install wget curl software-properties-common -y
     fi
-### Network Packages
     if [ -e /usr/bin/iperf ]; then 
         echoG 'Iperf already installed'
     else 
@@ -172,25 +186,29 @@ ubuntu_install_pkg(){
 }
 
 centos_install_pkg(){
-### Basic Packages
     if [ ! -e /bin/wget ]; then 
         silent yum install wget -y
     fi
-### Network Packages
-    if [ -e /usr/bin/iperf ]; then 
+    if [ -e /usr/bin/iperf ] || [ -e /usr/bin/iperf3 ]; then 
         echoG 'Iperf already installed'
     else 
         echoG 'Installing Iperf'
         silent yum install epel-release -y
         silent yum update -y
-        silent yum install iperf -y
-        [[ -e /usr/bin/iperf ]] && echoG 'Install Iperf Success' || echoR 'Install Iperf Failed' 
+        if [ "${OSNAMEVER}" = "CENTOS8" ] ; then
+            silent yum install iperf3 -y
+        else        
+            silent yum install iperf -y
+        fi    
+        if [ -e /usr/bin/iperf ] || [ -e /usr/bin/iperf3 ]; then
+            echoG 'Install Iperf Success'
+        else
+            echoR 'Install Iperf Failed' 
+        fi    
     fi    
 }
 
 ubuntu_install_siege(){
-### Benchmark Tools
-    ### Siege 
     if [ -e /usr/bin/siege ]; then 
         echoG 'Siege already installed'
     else 
@@ -201,8 +219,6 @@ ubuntu_install_siege(){
 }    
 
 centos_install_siege(){
-### Benchmark Tools
-    ### Siege 
     if [ -e /usr/bin/siege ]; then 
         echoG 'Siege already installed'
     else 
@@ -213,7 +229,6 @@ centos_install_siege(){
 } 
 
 ubuntu_install_h2load(){
-    ### h2load
     if [ -e /usr/bin/h2load ]; then 
         echoG 'H2Load already installed'  
     else      
@@ -224,7 +239,6 @@ ubuntu_install_h2load(){
 }
 
 centos_install_h2load(){
-    ### h2load
     if [ -e /usr/bin/h2load ]; then 
         echoG 'H2Load already installed'  
     else      
@@ -235,7 +249,6 @@ centos_install_h2load(){
 }
 
 ubuntu_install_wrk(){
-    ### wrk
     if [ -e ${CLIENTTOOL}/wrk/wrk ]; then 
         echoG 'wrk already installed'  
     else      
@@ -251,7 +264,6 @@ ubuntu_install_wrk(){
 }
 
 centos_install_wrk(){
-    ### wrk
     if [ -e ${CLIENTTOOL}/wrk/wrk ]; then 
         echoG 'wrk already installed'  
     else      
@@ -267,14 +279,13 @@ centos_install_wrk(){
 }
 
 ubuntu_install_jemeter(){
-    ### Jmeter
     if [ -e ${CLIENTTOOL}/${JMFD}/bin/jmeter.sh ]; then 
         echoG 'Jmeter already installed'
     else    
         echoG 'Installing Jmeter'
         cd ${CLIENTTOOL}/
         silent apt install openjdk-11-jre-headless -y     
-        wget -q http://apache.osuosl.org//jmeter/binaries/apache-jmeter-5.1.1.tgz
+        wget -q http://apache.osuosl.org//jmeter/binaries/apache-jmeter-5.2.tgz
         tar xf ${JMFD}-*.tgz
         rm -f ${JMFD}-*.tgz*
         mv ${JMFD}* ${JMFD}
@@ -284,14 +295,13 @@ ubuntu_install_jemeter(){
 }
 
 centos_install_jemeter(){
-    ### Jmeter
     if [ -e ${CLIENTTOOL}/${JMFD}/bin/jmeter.sh ]; then 
         echoG 'Jmeter already installed'
     else    
         echoG 'Installing Jmeter'
         cd ${CLIENTTOOL}/
         silent yum install java-11-openjdk-devel -y
-        wget -q http://apache.osuosl.org//jmeter/binaries/apache-jmeter-5.1.1.tgz
+        wget -q http://apache.osuosl.org//jmeter/binaries/apache-jmeter-5.2.tgz
         tar xf ${JMFD}-*.tgz
         rm -f ${JMFD}-*.tgz*
         mv ${JMFD}* ${JMFD}
@@ -364,7 +374,6 @@ loop_check_ssh(){
     done 
 }
 check_ssh(){
-### Check SSH
     echoG 'Start checking SSH...'   
     silent "${SSH_BATCH[@]}" root@${1} "echo 'Test connection'"
     if [[ ${?} != 0 || ! -f ~/.ssh/${SSHKEYNAME}.pub ]]; then 
@@ -377,9 +386,7 @@ check_ssh(){
     echoG 'Client to Server SSH is valid'
 }
 check_network(){
-### Check bendwidth    
     echoG 'Checking network throughput...'
-    ### Server side
     silent "${SSH[@]}" root@${1} "iperf -s >/dev/null 2>&1 &"
     silent "${SSH[@]}" root@${1} "ps aux | grep [i]perf"
     CHECK_CON=$(iperf -c ${1} -t 1 2>&1 >/dev/null)
@@ -393,17 +400,14 @@ check_network(){
     else
         echoR '[Failed] to Iperf due to connection issue, please check your firewall settings!'    
     fi
-### Check latency 
     ping -c5 -w3 ${1} >> ${ENVLOG}
     echo -n 'Network latency: '
     echoG "$(awk -F '/' 'END{print $5}' ${ENVLOG}) ms"
 }
 
 check_spec(){
-    ### Total Memory
     echo -n 'Client Server - Memory Size: '                             | tee -a ${ENVLOG}
     echoY $(awk '$1 == "MemTotal:" {print $2/1024 "MB"}' /proc/meminfo) | tee -a ${ENVLOG}
-    ### Total CPU
     echo -n 'Client Server - CPU number: '                              | tee -a ${ENVLOG}
     echoY $(lscpu | grep '^CPU(s):' | awk '{print $NF}')                | tee -a ${ENVLOG}
     echo -n 'Client Server - CPU Thread: '                              | tee -a ${ENVLOG}
@@ -419,7 +423,7 @@ mvexscript(){
     esac
 }
 
-mvclientscripts(){
+copy_tools(){
     mvexscript '../../benchmark.sh' "${CMDFD}/"
     mvexscript '../../tools/parse.sh' "${CLIENTTOOL}/"
     mvexscript '../../tools/custom.sh' "${CLIENTTOOL}/"
@@ -440,6 +444,12 @@ gen_domains(){
     done
 }
 
+prepare(){
+    check_os
+    clean_log_fd
+    create_log_fd
+}
+
 ubuntu_main(){
     ubuntu_sysupdate
     ubuntu_install_pkg
@@ -458,16 +468,19 @@ centos_main(){
     centos_install_jemeter
 }
 
-main(){
-    clean_log_fd
-    create_log_fd
-    [[ ${OSNAME} = 'centos' ]] && centos_main || ubuntu_main    
+main_check(){
     loop_check_ip
     check_ssh ${TESTSERVERIP}
     check_server_install ${TESTSERVERIP}
     check_network ${TESTSERVERIP}
     check_spec ${TESTSERVERIP}
-    mvclientscripts  
+}
+
+main(){
+    prepare
+    [[ ${OSNAME} = 'centos' ]] && centos_main || ubuntu_main    
+    main_check
+    copy_tools
     addhosts
     gen_domains ${WP_DOMAIN_NAME}
     help_message 1

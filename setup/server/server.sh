@@ -143,6 +143,7 @@ check_os()
             if [ ${OSVER} = 8 ]; then
                 echoR "Sorry, currently script only supports Centos(6-7), exit!!" 
                 ### Many package/repo are not ready for it.
+                exit 1
             fi    
         else
             export DEBIAN_FRONTEND=noninteractive
@@ -150,7 +151,6 @@ check_os()
         fi
     fi
 }
-check_os
 
 path_update(){
     if [ "${OSNAME}" = "centos" ] ; then
@@ -168,7 +168,7 @@ path_update(){
         FPMCONF="/etc/php/${PHP_P}.${PHP_S}/fpm/pool.d/www.conf"
     fi      
 }
-path_update
+
 
 KILL_PROCESS(){
     PROC_NUM=$(pidof ${1})
@@ -275,7 +275,7 @@ rm_old_pkg(){
     else 
         silent apt remove ${1} -y 
     fi 
-    if [ $(systemctl is-active ${1}) != 'active' ]; then 
+    if [ "$(systemctl is-active ${1})" != 'active' ]; then 
         echoG "[OK] remove ${1}"
     else 
         echoR "[Failed] remove ${1}"
@@ -1127,6 +1127,8 @@ copy_tools(){
 }
 
 prepare(){
+    check_os
+    path_update
     gen_pwd
     clean_log_fd
     create_log_fd

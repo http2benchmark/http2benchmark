@@ -22,6 +22,7 @@ ENVLOG="${ENVFD}/client/environment.log"
 CLIENTTOOL="${CMDFD}/tools"
 CLIENTCF="${CLIENTTOOL}/config"
 TEST_IP="${ENVFD}/ip.log"
+CUSTOM_WP="${ENVFD}/custom_wp"
 BENCHMARKLOG_H2="benchmark_H2.log"
 BENCHMARKLOG_SG="benchmark_SG.log"
 BENCHMARKLOG_JM="benchmark_JM.log"
@@ -42,13 +43,14 @@ TARGET_WP_DOMAIN=""
 HEADER='Accept-Encoding: gzip,deflate'
 SERVER_VERSION='N/A'
 ROUNDNUM=3
+HOST_FILE="/etc/hosts"
+DOMAIN_NAME='benchmark.com'
+WP_DOMAIN_NAME='wordpress.benchmark.com'
 declare -A PARAM_ARR
 declare -A WEB_ARR=( [apache]=wp_apache/ [lsws]=wp_lsws/ [nginx]=wp_nginx/ [ols]=wp_openlitespeed/ [caddy]=wp_caddy/ [h2o]=wp_h2o/ )
 
-###### H2Load
 CONCURRENT_STREAMS=$(grep '\-m' ${CLIENTCF}/h2load.conf  | awk '{print $NF}')
 
-### Tools
 echoY() {
     echo -e "\033[38;5;148m${1}\033[39m"
 }
@@ -67,7 +69,7 @@ echoNG() {
     echo -ne "\033[38;5;71m${1}\033[39m"
 }
 echoCYAN() {
-    echo -e "\033[1;36m${1}\033[0m"
+    echo -e "\033[1;4;36m${1}\033[0m"
 }
 
 grep_1stcolumn2(){
@@ -77,22 +79,50 @@ grep_1stcolumn2(){
 help_message(){
     case ${1} in
         "1")
+        echoCYAN "How to view the site from your browser?"
+        echo "please add the following entries to your $(echoB "${HOST_FILE}") file: "
+        echoG "$(cat ${TEST_IP}) ${DOMAIN_NAME}"
+        echoG "$(cat ${TEST_IP}) ${WP_DOMAIN_NAME}"
+
+        echoCYAN "How to customize the WordPress domain?"
+        echo 'Please run the following command to write it into all the wordrpess: '
+        echoG "${CLIENTTOOL}/custom.sh domain [example.com]"
+
         local SERVER_L=$(grep_1stcolumn2 '^SERVER_LIST' ${0})
         local SERVER_L_SUPPORT=$(grep_1stcolumn2 '#SERVER_LIST' ${0})
         local TOOL_L=$(grep_1stcolumn2 '^TOOL_LIST' ${0})
         local TOOL_L_SUPPORT=$(grep_1stcolumn2 '#TOOL_LIST' ${0})
         local TARGET_L=$(grep_1stcolumn2 '^TARGET_LIST' ${0})
-        local TARGET_L_SUPPORT=$(grep_1stcolumn2 '#TARGET_LIST' ${0})
-        echo '######################################################################################'
-        echo -e '# To customize tool PARAMETERS, e.g. h2load, please edit' $(echoB "${CLIENTCF}/h2load.conf")
-        echo -e '# To customize which servers, tools and target to run, please edit' $(echoB "${0} ")
+        local TARGET_L_SUPPORT=$(grep_1stcolumn2 '#TARGET_LIST' ${0})       
+
+        echoCYAN "How to change the testing servers: "
+        echo -e 'Please edit' $(echoB "${0} ")
         echo -e '#' $(echoY "Server List: ${SERVER_L}")
-        echo -e '#' $(echoG "Support val: ${SERVER_L_SUPPORT}")
+        echo -e '#' $(echoG "Support opt: ${SERVER_L_SUPPORT}")
+
+        echoCYAN "How to change the testing tools: "
+        echo -e 'Please edit' $(echoB "${0} ")
         echo -e '#' $(echoY "Tools List : ${TOOL_L}")
-        echo -e '#' $(echoG "Support val: ${TOOL_L_SUPPORT}")
+        echo -e '#' $(echoG "Support opt: ${TOOL_L_SUPPORT}")
+
+        echoCYAN "How to change the testing targets: "
+        echo -e 'Please edit' $(echoB "${0} ")
         echo -e '#' $(echoY "Target List: ${TARGET_L}")
-        echo -e '#' $(echoG "Support val: ${TARGET_L_SUPPORT}")
-        echo '######################################################################################'
+        echo -e '#' $(echoG "Support opt: ${TARGET_L_SUPPORT}")
+
+        echoCYAN "How to change the testing tools parameters: "
+        echo -e "Please edit $(echoB "${CLIENTCF}/h2load.conf ") for h2load"
+        
+        echoCYAN "How to import your wordpress site to test?"
+        echo -e 'Step 1. Compress site by accessing to your wordpress folder and run command: '
+        echoG "tar -czvf [mysite.tar.gz] ."
+        echo 'Step 2. Export wordpress database by command: '
+        echoG "mysqldump -u root -p[ROOT_PASSWORD] [DB_NAME] > wordpressdb.sql"
+        echo "Step 3. Upload both of your 'mysite.tar.gz' and 'mywordpressdb.sql' to the test server folder:" $(echoB "${CUSTOM_WP}")
+        echo "With anykind of file transfer tool you like. "
+        echo "Step 4. Execute the auto wordpress migration, please run: "
+        echoG "bash ${CLIENTTOOL}/custom.sh wordpress"
+
         exit 0
         ;;
         "2")
@@ -132,7 +162,6 @@ checkroundin(){
         if [ ${1} -lt 3 ]; then
             echoY "Suggest you to input value larger or equal to 3 next time"
             ROUNDNUM=${1}
-            #exit 1
         else
             ROUNDNUM=${1}
         fi
@@ -231,7 +260,6 @@ validate_tool(){
     echoG 'Checking benchmark Tools..'
     for TOOL in ${TOOL_LIST}; do
         if [ ${TOOL} = 'jmeter' ]; then
-            ### Check Jmeter
             cd ${CLIENTTOOL}/${JMFD}/bin
             JMTEST=$(./jmeter -v)
             if [ ${?} = 0 ]; then
@@ -244,7 +272,6 @@ validate_tool(){
             fi
         fi
         if [ ${TOOL} = 'h2load' ]; then
-            ### Check h2load
             silent h2load --version
             if [ ${?} = 0 ]; then
                 echoG '[OK] to run h2load'
@@ -255,7 +282,6 @@ validate_tool(){
             fi
         fi
         if [ ${TOOL} = 'siege' ]; then
-            ### Check Siege
             silent siege -V
             if [ ${?} = 0 ]; then
                 echoG '[OK] to run siege'
@@ -266,7 +292,6 @@ validate_tool(){
             fi
         fi
         if [ ${TOOL} = 'wrk' ]; then
-            ### Check wrk
             ${CLIENTTOOL}/wrk/wrk -v | grep -i Copyright >/dev/null 2>&1
             if [ ${?} = 0 ]; then
                 echoG '[OK] to run wrk'
@@ -350,16 +375,10 @@ loop_check_server_cpu(){
 }
 
 check_network(){
-### Check bendwidth    
-    #echoG 'Checking network throughput...'
-    ### Server side
     silent "${SSH[@]}" root@${1} "iperf -s >/dev/null 2>&1 &"
     silent "${SSH[@]}" root@${1} "ps aux | grep [i]perf"
     if [ ${?} = 0 ]; then
-        ### Client side 
-        #echoG 'Client side Testing...'
         iperf -c ${1} -i1  >> ${ENVLOG}
-        ### kill iperf process
         sleep 1
         "${SSH[@]}" root@${1} "kill -9 \$(ps aux | grep '[i]perf -s' | awk '{print \$2}')"
         echo -n 'Network traffic: '
@@ -367,17 +386,14 @@ check_network(){
     else
         echoR '[Failed] to Iperf due to connection issue'    
     fi
-### Check latency 
     ping -c5 -w3 ${1} >> ${ENVLOG}
     echo -n 'Network latency: '
     echoG "$(awk -F '/' 'END{print $5}' ${ENVLOG}) ms"
 }
 
 check_spec(){
-    ### Total Memory
     echo -n 'Client Server - Memory Size: '                                  | tee -a ${ENVLOG}
     echoY $(awk '$1 == "MemTotal:" {print $2/1024 "MB"}' /proc/meminfo)      | tee -a ${ENVLOG}
-    ### Total CPU
     echo -n 'Client Server - CPU number: '                                   | tee -a ${ENVLOG}
     echoY $(lscpu | grep '^CPU(s):' | awk '{print $NF}')                     | tee -a ${ENVLOG}
     echo -n 'Client Server - CPU Thread: '                                   | tee -a ${ENVLOG}
@@ -468,7 +484,8 @@ sort_log(){
         noext_target ${TARGET}
         check_wp_target ${TARGET}
         for TOOL in ${TOOL_LIST}; do              
-            printf "\033[38;5;148m%s\033[39m\t\033[38;5;148m%s\033[39m\n" "${TOOL}" "${PARAM_ARR[${TOOL}]} https://${TMP_DOMAIN}/${TMP_TARGET}"
+            printf "\033[38;5;148m%s\033[39m\t\033[38;5;148m%s\033[39m\n"\
+             "${TOOL}" "${PARAM_ARR[${TOOL}]} https://${TMP_DOMAIN}/${TMP_TARGET}"
             for SERVER in ${SERVER_LIST}; do
                 SORT_TARGET=${TARGET}
                 get_server_version ${SERVER}
@@ -488,14 +505,17 @@ sort_log(){
 
                 if [[ ${ROUNDNUM} -ge 3 ]]; then
                     for ((ROUND=1; ROUND<=${ROUNDNUM}; ROUND++)); do
-                        REQUESTS_ARRAY+=($(cat ${BENDATE}/${RESULT_NAME}.csv | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $12}'))
+                        REQUESTS_ARRAY+=($(cat ${BENDATE}/${RESULT_NAME}.csv | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} \
+                        | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $12}'))
                     done
 
                     IFS=$'\n' REQUESTS_ARRAY=($(sort <<< "${REQUESTS_ARRAY[*]}"))
                     unset IFS
 
-                    IGNORE_ARRAY+=($(cat ${BENDATE}/${RESULT_NAME}.csv | grep ${SORT_TARGET} | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | grep ${REQUESTS_ARRAY[0]} | head -n 1 | awk -F ',' '{print $2}'))
-                    IGNORE_ARRAY+=($(cat ${BENDATE}/${RESULT_NAME}.csv | grep ${SORT_TARGET} | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | grep ${REQUESTS_ARRAY[-1]} | head -n 1 | awk -F ',' '{print $2}'))
+                    IGNORE_ARRAY+=($(cat ${BENDATE}/${RESULT_NAME}.csv | grep ${SORT_TARGET} | grep ${TOOL} | grep ${SERVER} \
+                    | grep ${SERVER_VERSION} | grep ${REQUESTS_ARRAY[0]} | head -n 1 | awk -F ',' '{print $2}'))
+                    IGNORE_ARRAY+=($(cat ${BENDATE}/${RESULT_NAME}.csv | grep ${SORT_TARGET} | grep ${TOOL} | grep ${SERVER} \
+                    | grep ${SERVER_VERSION} | grep ${REQUESTS_ARRAY[-1]} | head -n 1 | awk -F ',' '{print $2}'))
                 fi
 
                 for ((ROUND=1; ROUND<=${ROUNDNUM}; ROUND++)); do
@@ -503,15 +523,19 @@ sort_log(){
                         continue
                     fi
                     # Get Time Spent and convert to S is MS
-                    TEMP_TIME_SPENT=$(cat ${BENDATE}/${RESULT_NAME}.csv | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $11}' | sed 's/.$//')
-                    TIME_METRIC=$(cat ${BENDATE}/${RESULT_NAME}.csv | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $11}' | tail -c 3)
+                    TEMP_TIME_SPENT=$(cat ${BENDATE}/${RESULT_NAME}.csv | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} \
+                    | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $11}' | sed 's/.$//')
+                    TIME_METRIC=$(cat ${BENDATE}/${RESULT_NAME}.csv | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} \
+                    | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $11}' | tail -c 3)
                     if [[ ${TIME_METRIC,,} == 'ms' ]]; then
                         TEMP_TIME_SPENT=$(awk "BEGIN {print ${TEMP_TIME_SPENT::-1}/1000}")
                     fi
                     TIME_SPENT=$(awk "BEGIN {print ${TIME_SPENT}+${TEMP_TIME_SPENT}}")
                     # Get BW Per Second and convert to MB if KB or GB
-                    TEMP_BW_PS=$(cat ${BENDATE}/${RESULT_NAME}.csv | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $13}' | sed 's/.$//' | sed 's/.$//')
-                    BW_METRIC=$(cat ${BENDATE}/${RESULT_NAME}.csv | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $13}' | tail -c 3)
+                    TEMP_BW_PS=$(cat ${BENDATE}/${RESULT_NAME}.csv | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} \
+                    | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $13}' | sed 's/.$//' | sed 's/.$//')
+                    BW_METRIC=$(cat ${BENDATE}/${RESULT_NAME}.csv | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} \
+                    | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $13}' | tail -c 3)
                     if [[ ${BW_METRIC,,} != 'mb' ]]; then
                         if [[ ${BW_METRIC,,} == 'kb' ]]; then
                             TEMP_BW_PS=$(awk "BEGIN {print ${TEMP_BW_PS}/1024}")
@@ -521,14 +545,18 @@ sort_log(){
                     fi
                     BANDWIDTH_PER_SECOND=$(awk "BEGIN {print ${BANDWIDTH_PER_SECOND}+${TEMP_BW_PS}}")
                     # Get Requests Per Second
-                    REQUESTS_PER_SECOND=$(awk "BEGIN {print ${REQUESTS_PER_SECOND}+$(cat ${BENDATE}/${RESULT_NAME}.csv | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $12}')}")
+                    REQUESTS_PER_SECOND=$(awk "BEGIN {print ${REQUESTS_PER_SECOND}+$(cat ${BENDATE}/${RESULT_NAME}.csv \
+                    | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $12}')}")
                     # Get Failed requests and if tool is WRK just make FAILED_REQUESTS equal to N/A
                     if [[ ${TOOL} == 'wrk' ]]; then
                         FAILED_REQUESTS='N/A'
                         HEADER_COMPRESSION='N/A'
                     else
-                        FAILED_REQUESTS=$(awk "BEGIN {print ${FAILED_REQUESTS}+$(cat ${BENDATE}/${RESULT_NAME}.csv | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $16}')}")
-                        HEADER_COMPRESSION=$(awk "BEGIN {print ${HEADER_COMPRESSION}+$(cat ${BENDATE}/${RESULT_NAME}.csv | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $17}' | sed 's/.$//')}")
+                        FAILED_REQUESTS=$(awk "BEGIN {print ${FAILED_REQUESTS}+$(cat ${BENDATE}/${RESULT_NAME}.csv \
+                        | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $16}')}")
+                        HEADER_COMPRESSION=$(awk "BEGIN {print ${HEADER_COMPRESSION}+$(cat ${BENDATE}/${RESULT_NAME}.csv \
+                        | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} \
+                        | awk -F ',' '{print $17}' | sed 's/.$//')}")
                     fi
                     ((++ITERATIONS))
                 done
@@ -548,7 +576,9 @@ sort_log(){
                     HEADER_COMPRESSION="${HEADER_COMPRESSION}%"
                 fi
 
-                printf "%-15s finished in %10.2f seconds, %10.2f req/s, %10.2f MB/s, %10s failures, %8s header compression\n" "${SERVER} ${SERVER_VERSION}" "${TIME_SPENT}" "${REQUESTS_PER_SECOND}" "${BANDWIDTH_PER_SECOND}" "${FAILED_REQUESTS}" "${HEADER_COMPRESSION}"
+                printf "%-15s finished in %10.2f seconds, %10.2f req/s, %10.2f MB/s, %10s failures, %8s header compression\n" \
+                "${SERVER} ${SERVER_VERSION}" "${TIME_SPENT}" "${REQUESTS_PER_SECOND}" "${BANDWIDTH_PER_SECOND}"\
+                 "${FAILED_REQUESTS}" "${HEADER_COMPRESSION}"
             done
         done
     done
