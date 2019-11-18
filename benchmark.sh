@@ -85,7 +85,7 @@ help_message(){
         echoG "$(cat ${TEST_IP}) ${WP_DOMAIN_NAME}"
 
         echoCYAN "How to customize the WordPress domain?"
-        echo 'Please run the following command to write it into all the wordrpess: '
+        echo 'Run the following command to change the WordPress home URL and site URL: '
         echoG "${CLIENTTOOL}/custom.sh domain [example.com]"
 
         local SERVER_L=$(grep_1stcolumn2 '^SERVER_LIST' ${0})
@@ -96,31 +96,31 @@ help_message(){
         local TARGET_L_SUPPORT=$(grep_1stcolumn2 '#TARGET_LIST' ${0})       
 
         echoCYAN "How to change the testing servers: "
-        echo -e 'Please edit' $(echoB "${0} ")
+        echo -e 'Edit' $(echoB "${0} ")
         echo -e '#' $(echoY "Server List: ${SERVER_L}")
         echo -e '#' $(echoG "Support opt: ${SERVER_L_SUPPORT}")
 
         echoCYAN "How to change the testing tools: "
-        echo -e 'Please edit' $(echoB "${0} ")
+        echo -e 'Edit' $(echoB "${0} ")
         echo -e '#' $(echoY "Tools List : ${TOOL_L}")
         echo -e '#' $(echoG "Support opt: ${TOOL_L_SUPPORT}")
 
         echoCYAN "How to change the testing targets: "
-        echo -e 'Please edit' $(echoB "${0} ")
+        echo -e 'Edit' $(echoB "${0} ")
         echo -e '#' $(echoY "Target List: ${TARGET_L}")
         echo -e '#' $(echoG "Support opt: ${TARGET_L_SUPPORT}")
 
-        echoCYAN "How to change the testing tools parameters: "
-        echo -e "Please edit $(echoB "${CLIENTCF}/h2load.conf ") for h2load"
+        echoCYAN "How to change the testing tool parameters: "
+        echo -e "Edit $(echoB "${CLIENTCF}/h2load.conf ") for h2load"
         
-        echoCYAN "How to import your wordpress site to test?"
-        echo -e 'Step 1. Compress site by accessing to your wordpress folder and run command: '
+        echoCYAN "How to import your wordpress site to testing?"
+        echo -e 'Step 1. Compress site by running the following command from your WordPress folder: '
         echoG "tar -czvf [mysite.tar.gz] ."
-        echo 'Step 2. Export wordpress database by command: '
+        echo 'Step 2. Export wordpress database with the following command: '
         echoG "mysqldump -u root -p[ROOT_PASSWORD] [DB_NAME] > wordpressdb.sql"
-        echo "Step 3. Upload both of your 'mysite.tar.gz' and 'mywordpressdb.sql' to the test server folder:" $(echoB "${CUSTOM_WP}")
-        echo "With anykind of file transfer tool you like. "
-        echo "Step 4. Execute the auto wordpress migration, please run: "
+        echo "Step 3. Upload 'mysite.tar.gz' and 'mywordpressdb.sql' to the test server folder:" $(echoB "${CUSTOM_WP}")
+        echo "With any kind of file transfer tool you like. "
+        echo "Step 4. Execute the auto wordpress migration. Run the following command: "
         echoG "bash ${CLIENTTOOL}/custom.sh wordpress"
 
         exit 0

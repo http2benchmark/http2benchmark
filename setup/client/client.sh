@@ -130,7 +130,7 @@ help_message() {
         "1")
         echoG "Client installation finished. For more information, please run command: ${BENCH_SH} -h"
         echo ''
-        echo "You can now run a benchmark with this command:" $(echoY "${BENCH_SH}")
+        echo "Run a benchmark with this command:" $(echoY "${BENCH_SH}")
         echo ''
         ;;
         "2")
@@ -139,7 +139,6 @@ help_message() {
         ;;
         "3")
         echo 'This script will install multiple benchmark tools and copy the benchmark script for testing'
-        echo "Once client installation finished, you can get more information from $(echoY "${BENCH_SH} -h")"
         ;;
     esac
 }
