@@ -143,8 +143,8 @@ install_prereq(){
         yum group install "Development Tools" -y
         yum install geoip geoip-devel yajl lmdb -y
     else
-        apt install build-essential
-        apt install libgeoip1 libgeoip-dev geoip-bin libyajl-dev lmdb-utils
+        apt install build-essential -y
+        apt install libgeoip1 libgeoip-dev geoip-bin libyajl-dev lmdb-utils -y
     fi    
 }
 

@@ -46,7 +46,7 @@ install_apacheModSec(){
     if [ ${OSNAME} = 'centos' ]; then
         yum install mod_security -y
     else
-        apt install libapache2-mod-security2
+        apt install libapache2-mod-security2 -y
     fi
 }
 
