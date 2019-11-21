@@ -35,7 +35,7 @@ fail_exit_fatal(){
     exit 1
 }
 
-if [ $# -lt 3 ] ; then
+if [ $# -lt 4 ] ; then
     if [ $# -eq 0 ]; then
         ./install_modsec.sh "apache"
         exit $?
@@ -46,25 +46,31 @@ fi
 TEMP_DIR="${1}"
 OWASP_DIR="${2}"
 APADIR="${3}"
-if [ $# -eq 4 ] ; then
+OSNAME="${4}"
+if [ $# -eq 5 ] ; then
     COMODO=1
 else
     COMODO=0
 fi
 
 config_apacheModSec(){
+    if [ ${OSNAME} = 'centos' ]; then
+        FILENAME="$APADIR/conf.d/mod_security.conf"
+    else
+        FILENAME="/etc/modsecurity/modsecurity.conf"
+    fi
     silent grep "http2Benchmark" $APADIR/conf.d/mod_security.conf
     if [ $? -eq 0 ] ; then
         echoG "Apache already configured for modsecurity"
         return 0
     fi
-    if [ -f $APADIR/conf.d/mod_security.conf ] ; then
-        cp -f $APADIR/conf.d/mod_security.conf $APADIR/conf.d/mod_security.conf.nomodsec
+    if [ -f $FILENAME ] ; then
+        cp -f $FILENAME "$FILENAME.nomodsec"
     fi
     if [ $COMODO -eq 1 ] ; then
-        echo -e "<IfModule mod_security2.c>\n    # http2Benchmark Comodo Rules\n    SecDataDir $OWASP_DIR\n    Include $OWASP_DIR/*.conf\n</IfModule>\n" > $APADIR/conf.d/mod_security.conf
+        echo -e "<IfModule mod_security2.c>\n    # http2Benchmark Comodo Rules\n    SecDataDir $OWASP_DIR\n    Include $OWASP_DIR/*.conf\n</IfModule>\n" > $FILENAME
     else
-        echo -e "<IfModule mod_security2.c>\n    # http2Benchmark OWASP Rules\n    SecDataDir $OWASP_DIR/owasp-modsecurity-crs/rules\n    #Include $OWASP_DIR/modsec_includes.conf\n    Include $OWASP_DIR/modsecurity.conf\n    Include $OWASP_DIR/owasp-modsecurity-crs/crs-setup.conf\n    Include $OWASP_DIR/owasp-modsecurity-crs/rules/*.conf\n</IfModule>\n" > $APADIR/conf.d/mod_security.conf
+        echo -e "<IfModule mod_security2.c>\n    # http2Benchmark OWASP Rules\n    SecDataDir $OWASP_DIR/owasp-modsecurity-crs/rules\n    #Include $OWASP_DIR/modsec_includes.conf\n    Include $OWASP_DIR/modsecurity.conf\n    Include $OWASP_DIR/owasp-modsecurity-crs/crs-setup.conf\n    Include $OWASP_DIR/owasp-modsecurity-crs/rules/*.conf\n</IfModule>\n" > $FILENAME
     fi
 }
 

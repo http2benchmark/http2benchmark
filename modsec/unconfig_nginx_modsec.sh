@@ -38,13 +38,14 @@ fail_exit_fatal(){
 if [ $# -eq 0 ]; then
     ./modsec_ctl.sh unconfig nginx
     exit $?
-elif [ $# -ne 3 ] ; then
+elif [ $# -ne 4 ] ; then
     fail_exit "Needs to be run by uninstall_modsec.sh"
     exit 1
 fi
 TEMP_DIR="${1}"
 OWASP_DIR="${2}"
 NGDIR="${3}"
+OSNAME="${4}"
 
 unconfig_nginxModSec(){
     silent grep ngx_http_modsecurity_module.so $NGDIR/nginx.conf

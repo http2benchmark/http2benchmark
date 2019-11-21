@@ -155,7 +155,7 @@ case "$1" in
                 PGM="${SCRIPTPATH}/$SCRIPT"
                 PARM1="${TEMP_DIR}"
                 PARM2="${OWASP_DIR}"
-                $PGM $PARM1 $PARM2 $SERVER_DIR
+                $PGM $PARM1 $PARM2 $SERVER_DIR $OSNAME
                 if [ $? -gt 0 ] ; then
                     fail_exit "config $SERVER failed"
                     FAILED=1
@@ -178,7 +178,7 @@ case "$1" in
                 PGM="${SCRIPTPATH}/$SCRIPT"
                 PARM1="${TEMP_DIR}"
                 PARM2="${SCRIPTPATH}/${COMODO_DIR}"
-                $PGM $PARM1 $PARM2 $SERVER_DIR 1
+                $PGM $PARM1 $PARM2 $SERVER_DIR $OSNAME 1
                 if [ $? -gt 0 ] ; then
                     fail_exit "comodo config $SERVER failed"
                     FAILED=1
@@ -200,7 +200,7 @@ case "$1" in
                 PGM="${SCRIPTPATH}/un$SCRIPT"
                 PARM1="${TEMP_DIR}"
                 PARM2="${OWASP_DIR}"
-                $PGM $PARM1 $PARM2 $SERVER_DIR
+                $PGM $PARM1 $PARM2 $SERVER_DIR $OSNAME
                 if [ $? -gt 0 ] ; then
                     fail_exit "config $SERVER failed"
                     FAILED=1

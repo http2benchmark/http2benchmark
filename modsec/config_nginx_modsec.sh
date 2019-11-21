@@ -45,7 +45,8 @@ fi
 TEMP_DIR="${1}"
 OWASP_DIR="${2}"
 NGDIR="${3}"
-if [ $# -eq 4 ] ; then
+OSNAME="${4}"
+if [ $# -eq 5 ] ; then
     COMODO=1
 else
     COMODO=0

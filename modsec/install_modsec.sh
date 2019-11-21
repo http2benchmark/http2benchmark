@@ -192,15 +192,10 @@ install_nginxModSec(){
 }
 
 config_apacheModSec(){
-    silent grep "http2Benchmark" $APADIR/conf.d/mod_security.conf
-    if [ $? -eq 0 ] ; then
-        echoG "Apache already configured for modsecurity"
-        return 0
-    fi
     PGM="${SCRIPTPATH}/config_apache_modsec.sh"
     PARM1="${TEMP_DIR}"
     PARM2="${OWASP_DIR}"
-    $PGM $PARM1 $PARM2 $APADIR
+    $PGM $PARM1 $PARM2 $APADIR $OSNAME
     if [ $? -gt 0 ] ; then
         fail_exit "config Apache failed"
     fi
