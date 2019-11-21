@@ -37,15 +37,16 @@ fail_exit_fatal(){
 
 if [ $# -lt 3 ] ; then
     if [ $# -eq 0 ]; then
-        ./modsec.sh "nginx"
+        ./install_modsec.sh "nginx"
         exit $?
     fi
-    fail_exit_fatal "Needs to be run by modsec.sh"
+    fail_exit_fatal "Needs to be run by install_modsec.sh"
 fi
 TEMP_DIR="${1}"
 OWASP_DIR="${2}"
 NGDIR="${3}"
-if [ $# -eq 4 ] ; then
+OSNAME="${4}"
+if [ $# -eq 5 ] ; then
     COMODO=1
 else
     COMODO=0

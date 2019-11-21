@@ -29,10 +29,10 @@ fail_exit(){
 
 if [ $# -ne 2 ] ; then
     if [ $# -eq 0 ]; then
-        ./modsec.sh "nginx"
+        ./install_modsec.sh "nginx"
         exit $?
     fi
-    fail_exit_fatal "Needs to be run by modsec.sh"
+    fail_exit_fatal "Needs to be run by install_modsec.sh"
 fi
 TEMP_DIR="${1}"
 OWASP_DIR="${2}"
@@ -95,7 +95,8 @@ install_openssl(){
     tar -zxf openssl-1.1.1c.tar.gz
     pushd openssl-1.1.1c
     #./Configure darwin64-x86_64-cc --prefix=/usr
-    ./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl
+    #./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl
+    ./config
     if [ $? -gt 0 ] ; then
         fail_exit_fatal "[ERROR] Configure of openssl failed" 1
     fi
@@ -107,7 +108,10 @@ install_openssl(){
     if [ $? -gt 0 ] ; then
         fail_exit_fatal "[ERROR] Install of openssl failed" 1
     fi
-    cp -pf /usr/local/ssl/bin/openssl /usr/local/bin
+    if [ -f "/usr/local/lib64/libssl.so" ] ; then
+        silent ln -s /usr/local/lib64/lib* /usr/lib64/
+        #cp -pf /usr/local/ssl/bin/openssl /usr/local/bin
+    fi
     popd
 }
 

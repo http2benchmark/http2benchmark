@@ -10,6 +10,7 @@ SERVERACCESS="${ENVFD}/serveraccess.txt"
 DOCROOT='/var/www/html'
 NGDIR='/etc/nginx'
 APADIR='/etc/apache2'
+APABINDIR='/usr/lib/apache2'
 LSDIR='/usr/local/entlsws'
 OLSDIR='/usr/local/lsws'
 #CADDIR='/etc/caddy'
@@ -78,6 +79,7 @@ check_system(){
             REPOPATH='/etc/yum.repos.d'
             APACHENAME='httpd'
             APADIR='/etc/httpd'
+            APABINDIR=$APADIR
             RED_VER=$(rpm -q --whatprovides redhat-release)
         else
             fail_exit "Please use CentOS or Ubuntu OS"
@@ -143,8 +145,8 @@ install_prereq(){
         yum group install "Development Tools" -y
         yum install geoip geoip-devel yajl lmdb -y
     else
-        apt install build-essential
-        apt install libgeoip1 libgeoip-dev geoip-bin libyajl-dev lmdb-utils
+        apt install build-essential -y
+        apt install libgeoip1 libgeoip-dev geoip-bin libyajl-dev lmdb-utils -y
     fi    
 }
 
@@ -166,7 +168,7 @@ install_owasp(){
 
 install_apacheModSec(){
     PGM="${SCRIPTPATH}/install_apache_modsec.sh"
-    $PGM $APADIR $OSNAME
+    $PGM $APABINDIR $OSNAME
     if [ $? -gt 0 ] ; then
         fail_exit "install Apache failed"
     fi
@@ -190,15 +192,10 @@ install_nginxModSec(){
 }
 
 config_apacheModSec(){
-    silent grep "http2Benchmark" $APADIR/conf.d/mod_security.conf
-    if [ $? -eq 0 ] ; then
-        echoG "Apache already configured for modsecurity"
-        return 0
-    fi
     PGM="${SCRIPTPATH}/config_apache_modsec.sh"
     PARM1="${TEMP_DIR}"
     PARM2="${OWASP_DIR}"
-    $PGM $PARM1 $PARM2 $APADIR
+    $PGM $PARM1 $PARM2 $APADIR $OSNAME
     if [ $? -gt 0 ] ; then
         fail_exit "config Apache failed"
     fi

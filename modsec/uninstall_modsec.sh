@@ -154,7 +154,7 @@ validate_servers(){
         fail_exit_fatal 'Successfully install http2benchmark before installing ModSecurity for it'
     fi
     #if [ ! -d $TEMP_DIR -o ! -d $OWASP_DIR ] ; then
-    #    fail_exit_fatal 'Run modsec.sh before running uninstall'
+    #    fail_exit_fatal 'Run install_modsec.sh before running uninstall'
     #fi
 }
 
@@ -165,15 +165,10 @@ validate_user(){
 }
 
 unconfig_apacheModSec(){
-    silent grep "http2Benchmark" $APADIR/conf.d/mod_security.conf
-    if [ $? -ne 0 ] ; then
-        echoG "Apache already unconfigured for modsecurity"
-        return 0
-    fi
     PGM="${SCRIPTPATH}/unconfig_apache_modsec.sh"
     PARM1="${TEMP_DIR}"
     PARM2="${OWASP_DIR}"
-    $PGM $PARM1 $PARM2 $APADIR
+    $PGM $PARM1 $PARM2 $APADIR $OSNAME
     if [ $? -gt 0 ] ; then
         fail_exit "unconfig Apache failed"
     fi
