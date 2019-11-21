@@ -28,7 +28,7 @@ fail_exit(){
 }
 
 if [ $# -ne 1 ] ; then
-    fail_exit "Needs to be run by modsec.sh"
+    fail_exit "Needs to be run by install_modsec.sh"
     exit 1
 fi
 OWASP_DIR="${1}"

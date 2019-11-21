@@ -56,8 +56,8 @@ fail_exit_fatal(){
 
 usage(){
     echoR "Usage:"
-    echoR "  ./modsec_ctl.sh config   - Assuming you have run ./modsec.sh configures the servers to use the OWASP rules"
-    echoR "  ./modsec_ctl.sh comodo   - Assuming you have run ./modsec.sh and copied the comodo rules into 'comodo_apache' and 'comodo_nginx' directories configures the server to use them"
+    echoR "  ./modsec_ctl.sh config   - Assuming you have run ./install_modsec.sh or the config scripts configures the servers to use the OWASP rules"
+    echoR "  ./modsec_ctl.sh comodo   - Assuming you have run ./install_modsec.sh or the config scripts and copied the comodo rules into 'comodo_apache' and 'comodo_nginx' directories configures the server to use them"
     echoR "  ./modsec_ctl.sh unconfig - Assuming you have installed the rules, removes the configuration, but leaves the rules around to be reconfigured later"
 }
 
@@ -111,7 +111,7 @@ if [ ! -f $SERVERACCESS -o ! -d $NGDIR -o ! -d $LSDIR ] ; then
     fail_exit_fatal 'Successfully install http2benchmark before installing ModSecurity for it'
 fi
 if [ ! -d $TEMP_DIR -o ! -d $OWASP_DIR ] ; then
-    fail_exit_fatal 'Run modsec.sh before running modsec_ctl'
+    fail_exit_fatal 'Run install_modsec.sh or the config scripts before running modsec_ctl'
 fi
 
 check_server(){

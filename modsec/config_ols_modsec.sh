@@ -37,10 +37,10 @@ fail_exit_fatal(){
 
 if [ $# -lt 3 ] ; then
     if [ $# -eq 0 ]; then
-        ./modsec.sh "openlitespeed"
+        ./install_modsec.sh "openlitespeed"
         exit $?
     fi
-    fail_exit_fatal "Needs to be run by modsec.sh"
+    fail_exit_fatal "Needs to be run by install_modsec.sh"
 fi
 TEMP_DIR="${1}"
 OWASP_DIR="${2}"
