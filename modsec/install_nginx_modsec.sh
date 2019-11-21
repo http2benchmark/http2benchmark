@@ -108,7 +108,10 @@ install_openssl(){
     if [ $? -gt 0 ] ; then
         fail_exit_fatal "[ERROR] Install of openssl failed" 1
     fi
-    #cp -pf /usr/local/ssl/bin/openssl /usr/local/bin
+    if [ -f "/usr/local/lib64/libssl.so" ] ; then
+        silent ln -s /usr/local/lib64/lib* /usr/lib64/
+        #cp -pf /usr/local/ssl/bin/openssl /usr/local/bin
+    fi
     popd
 }
 
