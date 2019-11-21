@@ -95,7 +95,8 @@ install_openssl(){
     tar -zxf openssl-1.1.1c.tar.gz
     pushd openssl-1.1.1c
     #./Configure darwin64-x86_64-cc --prefix=/usr
-    ./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl
+    #./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl
+    ./config
     if [ $? -gt 0 ] ; then
         fail_exit_fatal "[ERROR] Configure of openssl failed" 1
     fi
@@ -107,7 +108,7 @@ install_openssl(){
     if [ $? -gt 0 ] ; then
         fail_exit_fatal "[ERROR] Install of openssl failed" 1
     fi
-    cp -pf /usr/local/ssl/bin/openssl /usr/local/bin
+    #cp -pf /usr/local/ssl/bin/openssl /usr/local/bin
     popd
 }
 
@@ -153,7 +154,7 @@ install_nginxModSec(){
     git clone --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git
     pushd nginx
     git checkout default
-    auto/configure --with-compat --add-dynamic-module=../ModSecurity-nginx --prefix=$NGDIR --sbin-path=/usr/sbin/nginx --with-http_ssl_module --with-http_v2_module --conf-path=$NGDIR/nginx.conf --pid-path=/run/nginx.pid --error-log-path=/var/log/nginx/error.log --http-log-path=/var/log/nginx/access.log --with-pcre=../pcre-8.43 --with-zlib=../zlib-1.2.11 --with-http_ssl_module --with-stream --with-mail=dynamic --with-http_gunzip_module --with-http_gzip_static_module --with-http_auth_request_module --with-http_secure_link_module --with-openssl=/usr/local/bin
+    auto/configure --with-compat --add-dynamic-module=../ModSecurity-nginx --prefix=$NGDIR --sbin-path=/usr/sbin/nginx --with-http_ssl_module --with-http_v2_module --conf-path=$NGDIR/nginx.conf --pid-path=/run/nginx.pid --error-log-path=/var/log/nginx/error.log --http-log-path=/var/log/nginx/access.log --with-pcre=../pcre-8.43 --with-zlib=../zlib-1.2.11 --with-http_ssl_module --with-stream --with-mail=dynamic --with-http_gunzip_module --with-http_gzip_static_module --with-http_auth_request_module --with-http_secure_link_module
     if [ $? -gt 0 ] ; then
         fail_exit "[ERROR] Configure of Nginx ModSecurity Module failed"
         exit 1

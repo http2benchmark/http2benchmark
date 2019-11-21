@@ -10,6 +10,7 @@ SERVERACCESS="${ENVFD}/serveraccess.txt"
 DOCROOT='/var/www/html'
 NGDIR='/etc/nginx'
 APADIR='/etc/apache2'
+APABINDIR='/usr/lib/apache2'
 LSDIR='/usr/local/entlsws'
 OLSDIR='/usr/local/lsws'
 #CADDIR='/etc/caddy'
@@ -78,6 +79,7 @@ check_system(){
             REPOPATH='/etc/yum.repos.d'
             APACHENAME='httpd'
             APADIR='/etc/httpd'
+            APABINDIR=$APADIR
             RED_VER=$(rpm -q --whatprovides redhat-release)
         else
             fail_exit "Please use CentOS or Ubuntu OS"
@@ -166,7 +168,7 @@ install_owasp(){
 
 install_apacheModSec(){
     PGM="${SCRIPTPATH}/install_apache_modsec.sh"
-    $PGM $APADIR $OSNAME
+    $PGM $APABINDIR $OSNAME
     if [ $? -gt 0 ] ; then
         fail_exit "install Apache failed"
     fi
