@@ -78,7 +78,7 @@ It also stores the same logs for each test here - `/opt/Benchmark/TIME_STAMP/`:
 ## Customization
 Feel free to play with the script, specially `benchmarks.sh` to edit options, You can also run `bash benchmark.sh -h` on client-server to learn more about available options.
 
-Check [HERE](https://github.com/http2benchmark/http2benchmark/blob/master/modsec/README.md) if you want to run benchmarking with [modsecuriry](https://en.wikipedia.org/wiki/ModSecurity) enabled. 
+Check [HERE](https://github.com/http2benchmark/http2benchmark/blob/master/modsec/README.md) if you want to run benchmarking with [modsecurity](https://en.wikipedia.org/wiki/ModSecurity) enabled. 
 
 # Problems/Suggestions/Feedback/Contribution
 Please raise an issue on the repository, or send a PR for contributing.
