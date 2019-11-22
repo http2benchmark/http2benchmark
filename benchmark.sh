@@ -576,7 +576,7 @@ sort_log(){
                     HEADER_COMPRESSION="${HEADER_COMPRESSION}%"
                 fi
 
-                printf "%-15s finished in %10.2f seconds, %10.2f req/s, %10.2f MB/s, %10s failures, %8s header compression\n" \
+                printf "%-20s finished in %10.2f seconds, %10.2f req/s, %10.2f MB/s, %10s failures, %8s header compression\n" \
                 "${SERVER} ${SERVER_VERSION}" "${TIME_SPENT}" "${REQUESTS_PER_SECOND}" "${BANDWIDTH_PER_SECOND}"\
                  "${FAILED_REQUESTS}" "${HEADER_COMPRESSION}"
             done
