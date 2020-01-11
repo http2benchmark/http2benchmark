@@ -23,10 +23,6 @@ CLIENTTOOL="${CMDFD}/tools"
 CLIENTCF="${CLIENTTOOL}/config"
 TEST_IP="${ENVFD}/ip.log"
 CUSTOM_WP="${ENVFD}/custom_wp"
-BENCHMARKLOG_H2="benchmark_H2.log"
-BENCHMARKLOG_SG="benchmark_SG.log"
-BENCHMARKLOG_JM="benchmark_JM.log"
-BENCHMARKLOG_WK="benchmark_WK.log"
 BENDATE="${CMDFD}/Benchmark/${DATE}"
 TESTSERVERIP="$(cat ${TEST_IP})"
 SSH=(ssh -o 'StrictHostKeyChecking=no' -i ~/.ssh/${SSHKEYNAME})
@@ -271,7 +267,7 @@ validate_tool(){
                 RUNJMETER='false'
             fi
         fi
-        if [ ${TOOL} = 'h2load' ]; then
+        if [[ ${TOOL} == h2load* ]]; then
             silent h2load --version
             if [ ${?} = 0 ]; then
                 echoG '[OK] to run h2load'
@@ -310,7 +306,6 @@ validate_server(){
 
 siege_benchmark(){
     check_wp_target ${2}
-    MAPPINGLOG="${BENDATE}/${3}/${FILENAME}-${BENCHMARKLOG_SG}.${4}"
     echo "Target: https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
     target_check ${1} ${2} ${MAPPINGLOG}
     echo "Benchmark Command: siege ${FILE_CONTENT} ${HEADER} https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
@@ -318,7 +313,6 @@ siege_benchmark(){
 }
 h2load_benchmark(){
     check_wp_target ${2}
-    MAPPINGLOG="${BENDATE}/${3}/${FILENAME}-${BENCHMARKLOG_H2}.${4}"
     echo "Target: https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
     target_check ${1} ${2} ${MAPPINGLOG}
     echo "Benchmark Command: h2load ${FILE_CONTENT} ${HEADER} https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
@@ -326,7 +320,6 @@ h2load_benchmark(){
 }
 jmeter_benchmark(){
     check_wp_target ${2}
-    MAPPINGLOG="${BENDATE}/${3}/${FILENAME}-${BENCHMARKLOG_JM}.${4}"
     cd ${CLIENTTOOL}/${JMFD}/bin
     echo "Target: https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
     target_check ${1} ${2} ${MAPPINGLOG}
@@ -337,7 +330,6 @@ jmeter_benchmark(){
 }
 wrk_benchmark(){
     check_wp_target ${2}
-    MAPPINGLOG="${BENDATE}/${3}/${FILENAME}-${BENCHMARKLOG_WK}.${4}"
     cd ${CLIENTTOOL}/wrk
     echo "Target: https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
     target_check ${1} ${2} ${MAPPINGLOG}
@@ -411,6 +403,15 @@ before_test(){
     kill_process_cpu ${TESTSERVERIP}
 }
 
+load_param(){
+    if [ -f "${CLIENTCF}/$1_$2.conf" ]; then
+        readwholefile "${CLIENTCF}/$1_$2.conf"
+    else
+	readwholefile "${CLIENTCF}/$1.conf"
+    fi
+    PARAM_ARR["$1_$2"]="${FILE_CONTENT} '${HEADER}'"
+}
+
 main_test(){
     START_TIME="$(date -u +%s)"
     before_test
@@ -425,9 +426,8 @@ main_test(){
         echoCYAN "Start ${SERVER} ${SERVER_VERSION} Benchmarking >>>>>>>>"
         for TOOL in ${TOOL_LIST}; do
             echoB " - ${TOOL}"
-            readwholefile "${CLIENTCF}/${TOOL}.conf"
-            PARAM_ARR["${TOOL}"]="${FILE_CONTENT} '${HEADER}'"            
             for TARGET in ${TARGET_LIST}; do
+                load_param ${TOOL} ${TARGET}
                 check_wp_target ${TARGET}
                 echoY "      |--- https://${TMP_DOMAIN}/${TMP_TARGET}"  
                 if [ ${CHECK} = 'ON' ]; then
@@ -445,11 +445,14 @@ main_test(){
                     sleep 1
                     for ((ROUND = 1; ROUND<=$ROUNDNUM; ROUND++)); do
                         echoY "          |--- ${ROUND} / ${ROUNDNUM}"
-                        if [ ${TOOL} = 'siege' ] && [ "${RUNSIEGE}" = 'true' ]; then
+
+			MAPPINGLOG="${BENDATE}/${SERVER}/${FILENAME}-benchmark_${TOOL}.log.${ROUND}"
+
+			if [ ${TOOL} = 'siege' ] && [ "${RUNSIEGE}" = 'true' ]; then
                             sleep ${INTERVAL}
                             siege_benchmark ${TMP_DOMAIN} ${TARGET} ${SERVER} ${ROUND}
                         fi
-                        if [ ${TOOL} = 'h2load' ] && [ "${RUNH2LOAD}" = 'true' ]; then
+                        if [[ ${TOOL} == h2load* ]] && [ "${RUNH2LOAD}" = 'true' ]; then
                             sleep ${INTERVAL}
                             h2load_benchmark  ${TMP_DOMAIN} ${TARGET} ${SERVER} ${ROUND}
                         fi
@@ -485,7 +488,7 @@ sort_log(){
         check_wp_target ${TARGET}
         for TOOL in ${TOOL_LIST}; do              
             printf "\033[38;5;148m%s\033[39m\t\033[38;5;148m%s\033[39m\n"\
-             "${TOOL}" "${PARAM_ARR[${TOOL}]} https://${TMP_DOMAIN}/${TMP_TARGET}"
+             "${TOOL}" "${PARAM_ARR[${TOOL}_${TARGET}]} https://${TMP_DOMAIN}/${TMP_TARGET}"
             for SERVER in ${SERVER_LIST}; do
                 SORT_TARGET=${TARGET}
                 get_server_version ${SERVER}
@@ -591,13 +594,8 @@ parse_log() {
         for TOOL in ${TOOL_LIST}; do
             for TARGET in ${TARGET_LIST}; do
                 noext_target ${TARGET}
-                case ${TOOL} in
-                    siege)  BENCHMARKLOG=${BENCHMARKLOG_SG} ;;
-                    h2load) BENCHMARKLOG=${BENCHMARKLOG_H2} ;;
-                    jmeter) BENCHMARKLOG=${BENCHMARKLOG_JM} ;;
-                    wrk)    BENCHMARKLOG=${BENCHMARKLOG_WK} ;;
-                esac
-                if [ ${TOOL} != 'h2load' ]; then
+		BENCHMARKLOG="benchmark_${TOOL}.log"
+                if [[ ${TOOL} != h2load* ]]; then
                     PARSE_CONCURRENT_STREAMS='N/A'
                 else
                     PARSE_CONCURRENT_STREAMS=${CONCURRENT_STREAMS}
@@ -663,11 +661,15 @@ main(){
     kill $KILL_PROCESS_LIST > /dev/null 2>&1
 }
 
+PROFILE=default.profile
 while [ ! -z "${1}" ]; do
     case ${1} in
         -[hH] | -help | --help)
             help_message 1
             ;;
+        -p | -P | --profile) shift
+	    PROFILE=${1}
+	    ;;
         -r | -R | --round) shift
             checkroundin ${1}
             ;;
@@ -677,10 +679,14 @@ while [ ! -z "${1}" ]; do
         --no-check)
             CHECK='OFF'
             ;;
+	*.profile)
+            PROFILE=${1}
+            ;;
+
         *) echo
             'Not support'
             ;;
     esac
     shift
 done
-main
+. $PROFILE && main

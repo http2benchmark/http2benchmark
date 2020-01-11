@@ -100,7 +100,7 @@ function main() {
   fi
 
   for (( ITERATION = 1; ITERATION<=${ITERATIONS}; ITERATION++)); do
-    if [[ ${BENCHMARK_TOOL} == 'h2load' ]]; then
+    if [[ ${BENCHMARK_TOOL} == h2load* ]]; then
       parse_h2load ${ITERATION}
     elif [[ ${BENCHMARK_TOOL} == 'wrk' ]]; then
       parse_wrk ${ITERATION}
