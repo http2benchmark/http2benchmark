@@ -6,7 +6,7 @@ mkdir src
 cd src
 
 apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates coreutils curl git make cmake go-lang mercurial ssh \
+    ca-certificates coreutils curl git make cmake golang mercurial ssh \
     build-essential clang gyp ninja-build pkg-config zlib1g-dev \
  && apt-get autoremove -y && apt-get clean -y 
 

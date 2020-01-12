@@ -3,7 +3,7 @@
 apt install git g++ make binutils autoconf automake autotools-dev libtool pkg-config \
         zlib1g-dev libev-dev libjemalloc-dev libc-ares-dev bison \
         zlib1g libev4 libjemalloc1 libc-ares2 ca-certificates psmisc \
-        python
+        python -y
 
 cd `dirname "$0"`
 cd ..
