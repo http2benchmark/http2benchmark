@@ -72,6 +72,7 @@
     <gzipMaxFileSize>1M</gzipMaxFileSize>
     <gzipMinFileSize>300</gzipMinFileSize>
     <SSLCryptoDevice>null</SSLCryptoDevice>
+    <autoDisableHttp2>0</autoDisableHttp2>
   </tuning>
   <security>
     <fileAccessControl>
