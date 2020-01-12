@@ -424,6 +424,8 @@ mvexscript(){
 
 copy_tools(){
     mvexscript '../../benchmark.sh' "${CMDFD}/"
+    mvexscript '../../default.profile' "${CMDFD}/"
+
     mvexscript '../../tools/parse.sh' "${CLIENTTOOL}/"
     mvexscript '../../tools/custom.sh' "${CLIENTTOOL}/"
     for CONF in ${CONF_LIST}; do
