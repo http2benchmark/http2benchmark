@@ -2,7 +2,7 @@
 # /********************************************************************
 # HTTP2 Benchmark Modify Server for ModSecurity script
 # *********************************************************************/
-CMDFD='/opt'
+CMDFD='/opt/h2bench'
 ENVFD="${CMDFD}/env"
 ENVLOG="${ENVFD}/server/environment.log"
 CUSTOM_WP="${ENVFD}/custom_wp"

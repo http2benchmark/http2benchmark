@@ -2,7 +2,7 @@
 # /********************************************************************
 # HTTP2 Benchmark Monitor Script
 # *********************************************************************/
-CMDFD='/opt'
+CMDFD='/opt/h2bench'
 ENVFD="${CMDFD}/env"
 SERVERACCESS="${ENVFD}/serveraccess.txt"
 ENVLOG="${ENVFD}/server/environment.log"

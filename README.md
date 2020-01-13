@@ -54,15 +54,15 @@ Once complete, click ANY key to continue:
 ## How to test
 Run the following commands on the Client Server - 
 ``` bash
-/opt/benchmark.sh
+/opt/h2bench/benchmark.sh
 ```
 
 ## Log 
 After benchmark testing is complete, an elaborated result is displayed, feel free to share it.
 
-It also stores the same logs for each test here - `/opt/Benchmark/TIME_STAMP/`:
+It also stores the same logs for each test here - `/opt/h2bench/Benchmark/TIME_STAMP/`:
 ```
-/opt/Benchmark/
+/opt/h2bench/Benchmark/
    |_TIME_STAMP.tgz
    |_TIME_STAMP 
        |_RESULTS.csv

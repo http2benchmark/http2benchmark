@@ -2,7 +2,7 @@
 # /********************************************************************
 # HTTP2 Benchmark switch Script
 # *********************************************************************/
-CMDFD='/opt'
+CMDFD='/opt/h2bench'
 LSDIR='/usr/local/entlsws'
 OLSDIR='/usr/local/lsws'
 NGDIR='/etc/nginx'

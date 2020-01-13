@@ -2,7 +2,7 @@
 # /********************************************************************
 # HTTP2 Benchmark Client Script
 # *********************************************************************/
-CMDFD='/opt'
+CMDFD='/opt/h2bench'
 SSHKEYNAME='http2'
 ENVFD="${CMDFD}/env"
 BENCH_SH="${CMDFD}/benchmark.sh"

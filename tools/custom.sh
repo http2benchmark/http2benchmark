@@ -1,5 +1,5 @@
 #!/bin/bash
-CMDFD='/opt'
+CMDFD='/opt/h2bench'
 SSHKEYNAME='http2'
 ENVFD="${CMDFD}/env"
 CUSTOM_WP="${ENVFD}/custom_wp"

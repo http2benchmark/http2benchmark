@@ -2,7 +2,7 @@
 # /********************************************************************
 # HTTP2 Benchmark Server Script
 # *********************************************************************/
-CMDFD='/opt'
+CMDFD='/opt/h2bench'
 ENVFD="${CMDFD}/env"
 ENVLOG="${ENVFD}/server/environment.log"
 CUSTOM_WP="${ENVFD}/custom_wp"

@@ -1,5 +1,5 @@
 #!/bin/bash
-CMDFD='/opt'
+CMDFD='/opt/h2bench'
 ENVFD="${CMDFD}/env"
 CUSTOM_WP="${ENVFD}/custom_wp"
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
@@ -9,7 +9,7 @@ declare -A WEB_ARR=( [apache]=wp_apache [lsws]=wp_lsws [nginx]=wp_nginx [openlit
 WPNUM=$(ls -l ${CUSTOM_WP}/*.tar.gz 2>/dev/null | wc -l)
 SQLNUM=$(ls -l ${CUSTOM_WP}/*.sql 2>/dev/null | wc -l)
 SERVERACCESS="${ENVFD}/serveraccess.txt"
-DB_PWD=$(grep MYSQL_root_PASS /opt/env/serveraccess.txt | awk '{print $2}')
+DB_PWD=$(grep MYSQL_root_PASS ${ENVFD}/serveraccess.txt | awk '{print $2}')
 
 echoY() {
     echo -e "\033[38;5;148m${1}\033[39m"

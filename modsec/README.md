@@ -12,7 +12,7 @@ For example, to configure Enterprise LiteSpeed and Nginx for modsecurity, run th
 `./config_lsws_modsec.sh`
 `./config_nginx_modsec.sh`
 
-Once the `./config.*` script has been run successfully, you can run the  `/opt/benchmark.sh` script on the **client** machine and compare the various servers performance.  Since modsecurity is in effect you will see significantly different performance than without modsecurity installed and configured.
+Once the `./config.*` script has been run successfully, you can run the  `/opt/h2bench/benchmark.sh` script on the **client** machine and compare the various servers performance.  Since modsecurity is in effect you will see significantly different performance than without modsecurity installed and configured.
 
 The following scripts will unconfigure the server definitions and return them to a non-modsecurity setup.  They do not completely delete the environment, just allow you to switch back and forth between modsecurity and non-modsecurity.  You can run the `config.*` script above to return it to a configured state.
 * **unconfig_apache_modsec.sh**: Unconfigures Apache
