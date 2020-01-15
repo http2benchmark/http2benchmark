@@ -49,7 +49,7 @@ patch -p1 < ../quiche/extras/nginx/nginx-1.16.patch
        --with-http_v3_module                   \
        --with-openssl=../quiche/deps/boringssl \
        --with-quiche=../quiche
-make -j4
+make 
 
 cp objs/nginx /usr/sbin/nginx
 
