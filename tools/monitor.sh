@@ -21,7 +21,7 @@ update_web_version(){
         fi
     elif [ "${1}" = 'lsws' ]; then 
         SERVERV="$(cat /usr/local/entlsws/VERSION)"
-    elif [ "${1}" = 'ols' ]; then 
+    elif [ "${1}" = 'openlitespeed' ] || [ "${1}" = 'ols' ]; then 
         SERVERV="$(cat /usr/local/lsws/VERSION)"        
     elif [ "${1}" = 'nginx' ]; then 
         SERVERV=$(echo $(/usr/sbin/nginx -v 2>&1) 2>&1)
