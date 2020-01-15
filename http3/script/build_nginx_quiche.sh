@@ -51,5 +51,11 @@ patch -p1 < ../quiche/extras/nginx/nginx-1.16.patch
        --with-quiche=../quiche
 make 
 
+service nginx stop
+if [ !-f /usr/sbin/nginx.old ]; then
+    mv /usr/sbin/nginx /usr/sbin/nginx.old
+else
+    rm -f /usr/sbin/nginx
+fi
 cp objs/nginx /usr/sbin/nginx
 
