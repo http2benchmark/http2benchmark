@@ -689,4 +689,4 @@ while [ ! -z "${1}" ]; do
     esac
     shift
 done
-. $PROFILE && main
+source ${CMDFD}/${PROFILE} && main
