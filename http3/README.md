@@ -8,6 +8,7 @@ Server machine will only need to run following command to build Quich for Nginx 
 ```
 http2benchmark/http3/script/prepare_server.sh
 ```
+
 ## How to test
 Run command to benchmark LSWS, OpenLiteSpeed and Nginx
 ```
