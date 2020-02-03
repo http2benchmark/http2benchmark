@@ -9,7 +9,7 @@ TOOL_LIST="h2load wrk"
 #TOOL_LIST="h2load wrk jmeter"
 TARGET_LIST="1kstatic.html 1knogzip.jpg wordpress"
 #TARGET_LIST="1kstatic.html 1knogzip.jpg 10kstatic.html 100kstatic.html wordpress"
-
+PROFILE=default.profile
 CPU_THRESHOLD=30
 ### Add Interval to avoid potential traffic block
 INTERVAL=0
@@ -92,17 +92,17 @@ help_message(){
         local TARGET_L_SUPPORT=$(grep_1stcolumn2 '#TARGET_LIST' ${0})       
 
         echoCYAN "How to change the testing servers: "
-        echo -e 'Edit' $(echoB "${0} ")
+        echo -e 'Edit' $(echoB "${PROFILE} ")
         echo -e '#' $(echoY "Server List: ${SERVER_L}")
         echo -e '#' $(echoG "Support opt: ${SERVER_L_SUPPORT}")
 
         echoCYAN "How to change the testing tools: "
-        echo -e 'Edit' $(echoB "${0} ")
+        echo -e 'Edit' $(echoB "${PROFILE} ")
         echo -e '#' $(echoY "Tools List : ${TOOL_L}")
         echo -e '#' $(echoG "Support opt: ${TOOL_L_SUPPORT}")
 
         echoCYAN "How to change the testing targets: "
-        echo -e 'Edit' $(echoB "${0} ")
+        echo -e 'Edit' $(echoB "${PROFILE} ")
         echo -e '#' $(echoY "Target List: ${TARGET_L}")
         echo -e '#' $(echoG "Support opt: ${TARGET_L_SUPPORT}")
 
@@ -661,7 +661,7 @@ main(){
     kill $KILL_PROCESS_LIST > /dev/null 2>&1
 }
 
-PROFILE=default.profile
+
 while [ ! -z "${1}" ]; do
     case ${1} in
         -[hH] | -help | --help)
