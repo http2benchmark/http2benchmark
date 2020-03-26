@@ -11,7 +11,7 @@ PREFIX=`pwd`
 mkdir src
 cd src
 
-git clone --depth 1 -b OpenSSL_1_1_1d-quic-draft-25 https://github.com/tatsuhiro-t/openssl && \
+git clone --depth 1 -b OpenSSL_1_1_1d-quic-draft-27 https://github.com/tatsuhiro-t/openssl && \
     cd openssl && ./config enable-tls1_3 --libdir=lib --openssldir=/etc/ssl no-shared no-dso no-tests && make && make install_sw && cd .. 
 
 git clone --depth 1 https://github.com/ngtcp2/nghttp3 && \
