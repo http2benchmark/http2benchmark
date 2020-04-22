@@ -316,7 +316,10 @@ h2load_benchmark(){
     echo "Target: https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
     target_check ${1} ${2} ${MAPPINGLOG}
     echo "Benchmark Command: h2load ${FILE_CONTENT} ${HEADER} https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
-    h2load ${FILE_CONTENT} "${HEADER}" "https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
+    timeout 20 h2load ${FILE_CONTENT} "${HEADER}" "https://${1}/${TMP_TARGET}" >> ${MAPPINGLOG}
+    if [[ $? -ne 0 ]]; then
+       echoR "[FAILED] Timeout!"
+    fi
 }
 jmeter_benchmark(){
     check_wp_target ${2}
@@ -516,9 +519,9 @@ sort_log(){
                     unset IFS
 
                     IGNORE_ARRAY+=($(cat ${BENDATE}/${RESULT_NAME}.csv | grep ${SORT_TARGET} | grep ${TOOL} | grep ${SERVER} \
-                    | grep ${SERVER_VERSION} | grep ${REQUESTS_ARRAY[0]} | head -n 1 | awk -F ',' '{print $2}'))
+                    | grep ${SERVER_VERSION} | grep ${REQUESTS_ARRAY[0]} 2>/dev/null | head -n 1 | awk -F ',' '{print $2}'))
                     IGNORE_ARRAY+=($(cat ${BENDATE}/${RESULT_NAME}.csv | grep ${SORT_TARGET} | grep ${TOOL} | grep ${SERVER} \
-                    | grep ${SERVER_VERSION} | grep ${REQUESTS_ARRAY[-1]} | head -n 1 | awk -F ',' '{print $2}'))
+                           | grep ${SERVER_VERSION} | grep ${REQUESTS_ARRAY[-1]} 2>/dev/null | head -n 1 | awk -F ',' '{print $2}'))
                 fi
 
                 for ((ROUND=1; ROUND<=${ROUNDNUM}; ROUND++)); do
@@ -533,7 +536,7 @@ sort_log(){
                     if [[ ${TIME_METRIC,,} == 'ms' ]]; then
                         TEMP_TIME_SPENT=$(awk "BEGIN {print ${TEMP_TIME_SPENT::-1}/1000}")
                     fi
-                    TIME_SPENT=$(awk "BEGIN {print ${TIME_SPENT}+${TEMP_TIME_SPENT}}")
+                    TIME_SPENT=$(awk "BEGIN {print ${TIME_SPENT}+${TEMP_TIME_SPENT}}" 2>/dev/null)
                     # Get BW Per Second and convert to MB if KB or GB
                     TEMP_BW_PS=$(cat ${BENDATE}/${RESULT_NAME}.csv | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} \
                     | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $13}' | sed 's/.$//' | sed 's/.$//')
@@ -546,33 +549,33 @@ sort_log(){
                             TEMP_BW_PS=$(awk "BEGIN {print ${TEMP_BW_PS}*1024}")
                         fi
                     fi
-                    BANDWIDTH_PER_SECOND=$(awk "BEGIN {print ${BANDWIDTH_PER_SECOND}+${TEMP_BW_PS}}")
+                    BANDWIDTH_PER_SECOND=$(awk "BEGIN {print ${BANDWIDTH_PER_SECOND}+${TEMP_BW_PS}}" 2>/dev/null)
                     # Get Requests Per Second
                     REQUESTS_PER_SECOND=$(awk "BEGIN {print ${REQUESTS_PER_SECOND}+$(cat ${BENDATE}/${RESULT_NAME}.csv \
-                    | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $12}')}")
+                    | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $12}')}" 2>/dev/null)
                     # Get Failed requests and if tool is WRK just make FAILED_REQUESTS equal to N/A
                     if [[ ${TOOL} == 'wrk' ]]; then
                         FAILED_REQUESTS='N/A'
                         HEADER_COMPRESSION='N/A'
                     else
                         FAILED_REQUESTS=$(awk "BEGIN {print ${FAILED_REQUESTS}+$(cat ${BENDATE}/${RESULT_NAME}.csv \
-                        | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $16}')}")
+                        | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} | awk -F ',' '{print $16}')}" 2>/dev/null)
                         HEADER_COMPRESSION=$(awk "BEGIN {print ${HEADER_COMPRESSION}+$(cat ${BENDATE}/${RESULT_NAME}.csv \
                         | grep "${SORT_TARGET},${ROUND}," | grep ${TOOL} | grep ${SERVER} | grep ${SERVER_VERSION} \
-                        | awk -F ',' '{print $17}' | sed 's/.$//')}")
+                        | awk -F ',' '{print $17}' | sed 's/.$//')}" 2>/dev/null)
                     fi
                     ((++ITERATIONS))
                 done
 
-                TIME_SPENT=$(awk "BEGIN {print ${TIME_SPENT}/${ITERATIONS}}")
-                BANDWIDTH_PER_SECOND=$(awk "BEGIN {print ${BANDWIDTH_PER_SECOND}/${ITERATIONS}}")
-                REQUESTS_PER_SECOND=$(awk "BEGIN {print ${REQUESTS_PER_SECOND}/${ITERATIONS}}")
+                TIME_SPENT=$(awk "BEGIN {print ${TIME_SPENT}/${ITERATIONS}}" 2>/dev/null)
+                BANDWIDTH_PER_SECOND=$(awk "BEGIN {print ${BANDWIDTH_PER_SECOND}/${ITERATIONS}}" 2>/dev/null)
+                REQUESTS_PER_SECOND=$(awk "BEGIN {print ${REQUESTS_PER_SECOND}/${ITERATIONS}}" 2>/dev/null)
                 if [[ ${TOOL} == 'wrk' ]]; then
                     FAILED_REQUESTS='N/A'
                     HEADER_COMPRESSION='N/A'
                 else
-                    FAILED_REQUESTS=$(awk "BEGIN {print ${FAILED_REQUESTS}/${ITERATIONS}}")
-                    HEADER_COMPRESSION=$(awk "BEGIN {print ${HEADER_COMPRESSION}/${ITERATIONS}}")
+                    FAILED_REQUESTS=$(awk "BEGIN {print ${FAILED_REQUESTS}/${ITERATIONS}}" 2>/dev/null)
+                    HEADER_COMPRESSION=$(awk "BEGIN {print ${HEADER_COMPRESSION}/${ITERATIONS}}" 2>/dev/null)
                 fi
 
                 if [[ ${HEADER_COMPRESSION} != 'N/A' ]]; then
