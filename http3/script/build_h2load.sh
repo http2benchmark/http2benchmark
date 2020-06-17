@@ -1,9 +1,10 @@
 
+apt install libjemalloc* -y
 
 apt install git g++ make binutils autoconf automake autotools-dev libtool pkg-config \
-        zlib1g-dev libev-dev libjemalloc-dev libc-ares-dev bison \
-        zlib1g libev4 libjemalloc1 libc-ares2 ca-certificates psmisc \
-        python -y
+        zlib1g-dev libev-dev libc-ares-dev bison \
+        zlib1g libev4 libc-ares2 ca-certificates psmisc \
+        python -y -m
 
 cd `dirname "$0"`
 cd ..
@@ -11,7 +12,7 @@ PREFIX=`pwd`
 mkdir src
 cd src
 
-git clone --depth 1 -b OpenSSL_1_1_1d-quic-draft-27 https://github.com/tatsuhiro-t/openssl && \
+git clone --depth 1 -b OpenSSL_1_1_1g-quic-draft-29 https://github.com/tatsuhiro-t/openssl && \
     cd openssl && ./config enable-tls1_3 --libdir=lib --openssldir=/etc/ssl no-shared no-dso no-tests && make && make install_sw && cd .. 
 
 git clone --depth 1 https://github.com/ngtcp2/nghttp3 && \
