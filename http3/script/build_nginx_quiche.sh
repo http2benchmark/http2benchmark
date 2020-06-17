@@ -7,7 +7,7 @@ cd src
 
 apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates coreutils curl git make cmake golang mercurial ssh \
-    build-essential clang gyp ninja-build pkg-config zlib1g-dev \
+    build-essential clang gyp ninja-build pkg-config zlib1g-dev libpcre3-dev\
  && apt-get autoremove -y && apt-get clean -y 
 
 export RUSTUP_HOME=/usr/local/rustup 
@@ -16,8 +16,7 @@ export PATH=/usr/local/cargo/bin:$PATH
 export RUST_VERSION=stable
 
 set -eux; \
-curl -sSLf "https://static.rust-lang.org/rustup/archive/1.20.2/x86_64-unknown-linux-gnu/rustup-init" -o rustup-init; \
-echo 'e68f193542c68ce83c449809d2cad262cc2bbb99640eb47c58fc1dc58cc30add *rustup-init' | sha256sum -c -; \
+curl https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init -o rustup-init; \
 chmod +x rustup-init; \
 ./rustup-init -y --no-modify-path --default-toolchain "$RUST_VERSION"; \
     rm -f rustup-init; \
