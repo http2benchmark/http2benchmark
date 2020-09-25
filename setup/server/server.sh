@@ -143,12 +143,7 @@ check_os()
         exit 1
     else
         if [ "${OSNAME}" = "centos" ] ; then
-            echoG "Current platform is ${OSNAME} ${OSVER}"
-            if [ ${OSVER} = 8 ]; then
-                echoR "Sorry, currently script only supports Centos(7-8), exit!!" 
-                ### Many package/repo are not ready for it.
-                exit 1
-            fi    
+            echoG "Current platform is ${OSNAME} ${OSVER}" 
         else
             export DEBIAN_FRONTEND=noninteractive
             echoG "Current platform is ${OSNAMEVER} ${OSNAME} ${OSVER}."
@@ -396,7 +391,11 @@ centos_pkg_postfix(){
         echoG 'Installing postfix'
         yum install postfix -y >/dev/null 2>&1
         [[ -e /usr/sbin/postfix ]] && echoG 'Install postfix Success' || echoR 'Install postfix Failed'
-    fi    
+    fi
+    if [ ! -f /var/spool/postfix/public/pickup ]; then
+        mkfifo /var/spool/postfix/public/pickup
+        service postfix restart >/dev/null 2>&1
+    fi
 }
 
 centos_pkg_system(){
@@ -716,11 +715,11 @@ centos_install_caddy(){
         echoG 'Install caddy Web Server'
         if [ ${OSVER} = 8 ]; then
             dnf install 'dnf-command(copr)' -y > /dev/null 2>&1
-            dnf copr enable @caddy/caddy
+            dnf copr enable @caddy/caddy -y > /dev/null 2>&1
             dnf install caddy -y > /dev/null 2>&1
         else
             yum install yum-plugin-copr -y > /dev/null 2>&1
-            yum copr enable @caddy/caddy
+            yum copr enable @caddy/caddy -y > /dev/null 2>&1
             yum install caddy -y > /dev/null 2>&1
         fi
         SERVERV=$(caddy version | awk '{print $1}')
@@ -801,7 +800,6 @@ centos_install_php(){
 }    
 
 install_target(){
-### Install WordPress + Cache
     if [ -e /usr/local/bin/wp ]; then 
         echoG 'WP CLI already exist'
     else    
@@ -814,7 +812,7 @@ install_target(){
             mv wp-cli.phar /usr/local/bin/wp
         fi
     fi
-    ######Mariadb
+
     silent mysql -u root -e 'status'
     if [ ${?} = 0 ]; then
         set_mariadb_root
@@ -827,8 +825,6 @@ install_target(){
                 mkdir ${DOCROOT}/${WP_NAME}
                 cd ${DOCROOT}/${WP_NAME}
                 silent wp core download --allow-root
-                    #-e "update mysql.user set authentication_string=password('${MYSQL_ROOT_PASS}') where user='root';"
-                ### Update user password
                 mysql -u root -p${MYSQL_ROOT_PASS} << EOC
 CREATE DATABASE ${WP_NAME};
 grant all privileges on ${WP_NAME}.* to 'wordpress'@'localhost' identified by '${MYSQL_USER_PASS}';
@@ -1008,8 +1004,8 @@ centos_setup_apache(){
     cp ../../webservers/apache/conf/deflate.conf ${APADIR}/conf.d
     cp ../../webservers/apache/conf/default-ssl.conf ${APADIR}/conf.d
     sed -i '/ErrorLog/s/^/#/g' /etc/httpd/conf.d/default-ssl.conf
-    service httpd restart
 }
+
 ubuntu_setup_lsws(){
     echoG 'Setting LSWS Config'
     cd ${SCRIPTPATH}/

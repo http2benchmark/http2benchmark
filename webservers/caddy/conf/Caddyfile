@@ -2,10 +2,12 @@ benchmark.com:443 {
     tls /etc/ssl/http2benchmark.crt /etc/ssl/http2benchmark.key
     root * /var/www/html
     php_fastcgi unix//run/php/php7.4-fpm.sock
+    file_server /etc/ssl
 }
 
 wordpress.benchmark.com:443 {
     tls /etc/ssl/http2benchmark.crt /etc/ssl/http2benchmark.key
     root * /var/www/html/wp_caddy
     php_fastcgi unix//run/php/php7.4-fpm.sock
+    file_server /etc/ssl
 }
