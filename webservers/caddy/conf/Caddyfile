@@ -1,19 +1,11 @@
 benchmark.com:443 {
-    tls self_signed
-    root /var/www/html
-    gzip {
-        min_length 300
-        level 1
-    }
-    fastcgi / /run/php/php7.2-fpm.sock php
+    tls /etc/ssl/http2benchmark.crt /etc/ssl/http2benchmark.key
+    root * /var/www/html
+    php_fastcgi unix//run/php/php7.4-fpm.sock
 }
 
 wordpress.benchmark.com:443 {
-    tls self_signed
-    root /var/www/html/wp_caddy
-    gzip {
-        min_length 300
-        level 1
-    }
-    fastcgi / /run/php/php7.2-fpm.sock php
+    tls /etc/ssl/http2benchmark.crt /etc/ssl/http2benchmark.key
+    root * /var/www/html/wp_caddy
+    php_fastcgi unix//run/php/php7.4-fpm.sock
 }

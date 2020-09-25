@@ -123,8 +123,8 @@
   <extProcessorList>
     <extProcessor>
       <type>lsapi</type>
-      <name>lsphp72</name>
-      <address>uds://tmp/lshttpd/lsphp72.sock</address>
+      <name>lsphp74</name>
+      <address>uds://tmp/lshttpd/lsphp74.sock</address>
       <maxConns>2000</maxConns>
       <env>PHP_LSAPI_CHILDREN=2000</env>
       <env>LSAPI_AVOID_FORK=1</env>
@@ -133,7 +133,7 @@
       <persistConn>1</persistConn>
       <respBuffer>0</respBuffer>
       <autoStart>3</autoStart>
-      <path>/usr/local/lsws/lsphp72/bin/lsphp</path>
+      <path>/usr/local/lsws/lsphp74/bin/lsphp</path>
       <backlog>100</backlog>
       <instances>1</instances>
       <priority>0</priority>
@@ -147,12 +147,12 @@
     <scriptHandler>
       <suffix>php</suffix>
       <type>lsapi</type>
-      <handler>lsphp72</handler>
+      <handler>lsphp74</handler>
     </scriptHandler>
     <scriptHandler>
       <suffix>php5</suffix>
       <type>lsapi</type>
-      <handler>lsphp72</handler>
+      <handler>lsphp74</handler>
     </scriptHandler>
   </scriptHandlerList>
   <cache>

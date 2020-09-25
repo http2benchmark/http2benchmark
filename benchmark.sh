@@ -6,11 +6,10 @@
 SERVER_LIST="lsws nginx"
 #SERVER_LIST="apache lsws nginx openlitespeed caddy h2o"
 TOOL_LIST="h2load wrk"
-#TOOL_LIST="h2load wrk jmeter"
 TARGET_LIST="1kstatic.html 1knogzip.jpg wordpress"
 #TARGET_LIST="1kstatic.html 1knogzip.jpg 10kstatic.html 100kstatic.html wordpress"
 PROFILE=default.profile
-CPU_THRESHOLD=30
+CPU_THRESHOLD=20
 ### Add Interval to avoid potential traffic block
 INTERVAL=0
 CHECK='ON'
@@ -582,7 +581,7 @@ sort_log(){
                     HEADER_COMPRESSION="${HEADER_COMPRESSION}%"
                 fi
 
-                printf "%-15s takes %4.2f secs, %9.2f req/s, %6.2f MB/s, %6s failures, %6s header compression\n" \
+                printf "%-20s takes %4.2f secs, %9.2f req/s, %6.2f MB/s, %6s failures, %6s header compression\n" \
                 "${SERVER} ${SERVER_VERSION}" "${TIME_SPENT}" "${REQUESTS_PER_SECOND}" "${BANDWIDTH_PER_SECOND}"\
                  "${FAILED_REQUESTS}" "${HEADER_COMPRESSION}"
             done
@@ -603,9 +602,13 @@ parse_log() {
                 else
                     PARSE_CONCURRENT_STREAMS=${CONCURRENT_STREAMS}
                 fi
-                ${CLIENTTOOL}/parse.sh ${TOOL} "https://${TARGET_DOMAIN}/${TARGET}" ${BENDATE} \
+                if [ -f "${BENDATE}/${SERVER}/${FILENAME}-${BENCHMARKLOG}" ]; then
+                    ${CLIENTTOOL}/parse.sh ${TOOL} "https://${TARGET_DOMAIN}/${TARGET}" ${BENDATE} \
                     "${SERVER}/${FILENAME}-${BENCHMARKLOG}" "${SERVER}-${TARGET}" ${SERVER} ${SERVER_VERSION} \
                     ${ROUNDNUM} ${PARSE_CONCURRENT_STREAMS}
+                else
+                    echoR 'No result, skip!'
+                fi    
             done
         done
     done

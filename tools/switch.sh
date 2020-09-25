@@ -61,7 +61,7 @@ server_stop()
     #echoG 'Stopping web servers...'
     silent systemctl stop nginx 
     silent systemctl stop ${APACHENAME} 
-    silent systemctl stop php7.2-fpm php-fpm
+    silent systemctl stop php7.4-fpm php-fpm
     silent systemctl stop caddy
     silent systemctl stop h2o
     silent ${LSDIR}/bin/lswsctrl stop
@@ -195,7 +195,7 @@ server_switch(){
 	    if [ ${OSNAME} = 'centos' ]; then 
             SERVER_NAME='php-fpm httpd'
         else 
-            SERVER_NAME='php7.2-fpm apache2'
+            SERVER_NAME='php7.4-fpm apache2'
         fi
     elif [[ ${1} =~ ^(ls|LS) ]]; then
         SERVER_NAME='lsws'
@@ -205,19 +205,19 @@ server_switch(){
         if [ ${OSNAME} = 'centos' ]; then
             SERVER_NAME='php-fpm nginx'
         else    
-            SERVER_NAME='php7.2-fpm nginx'
+            SERVER_NAME='php7.4-fpm nginx'
         fi    
     elif [[ ${1} =~ ^(caddy|CADDY) ]]; then
         if [ ${OSNAME} = 'centos' ]; then
             SERVER_NAME='php-fpm caddy'
         else    
-            SERVER_NAME='php7.2-fpm caddy'
+            SERVER_NAME='php7.4-fpm caddy'
         fi     
     elif [[ ${1} =~ ^(h2o|H2O) ]]; then
         if [ ${OSNAME} = 'centos' ]; then
             SERVER_NAME='php-fpm h2o'
         else    
-            SERVER_NAME='php7.2-fpm h2o'
+            SERVER_NAME='php7.4-fpm h2o'
         fi            
     else 
     	echoR 'Please input apache, lsws, openlitespeed, caddy, h2o or nginx'

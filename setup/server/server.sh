@@ -20,7 +20,7 @@ GROUP=''
 CERTDIR='/etc/ssl'
 MARIAVER='10.3'
 PHP_P='7'
-PHP_S='2'
+PHP_S='4'
 REPOPATH=''
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 SERVER_LIST="apache lsws nginx openlitespeed caddy h2o"
@@ -112,6 +112,10 @@ check_os()
             OSNAMEVER=UBUNTU18
             OSVER=bionic
             MARIADBCPUARCH="arch=amd64"
+        elif [ ${UBUNTU_V} = 20 ] ; then
+            OSNAMEVER=UBUNTU20
+            OSVER=bionic
+            MARIADBCPUARCH="arch=amd64"            
         fi
     elif [ -f /etc/debian_version ] ; then
         OSNAME=debian
@@ -135,13 +139,13 @@ check_os()
         fi
     fi
     if [ "${OSNAMEVER}" = "" ] ; then
-        echoR "Sorry, currently script only supports Centos(6-7), Debian(7-10) and Ubuntu(14,16,18)."
+        echoR "Sorry, currently script only supports Centos(7-8), Debian(7-10) and Ubuntu(14,16,18,20)."
         exit 1
     else
         if [ "${OSNAME}" = "centos" ] ; then
             echoG "Current platform is ${OSNAME} ${OSVER}"
             if [ ${OSVER} = 8 ]; then
-                echoR "Sorry, currently script only supports Centos(6-7), exit!!" 
+                echoR "Sorry, currently script only supports Centos(7-8), exit!!" 
                 ### Many package/repo are not ready for it.
                 exit 1
             fi    
@@ -596,7 +600,11 @@ ubuntu_install_ols(){
 centos_install_ols(){
     echoG 'Install openLiteSpeed Web Server'
     centos_reinstall 'openlitespeed'
-    silent rpm -Uvh http://rpms.litespeedtech.com/centos/litespeed-repo-1.1-1.el7.noarch.rpm
+    if [ ${OSVER} = 8 ]; then
+        silent rpm -Uvh http://rpms.litespeedtech.com/centos/litespeed-repo-1.1-1.el8.noarch.rpm
+    else
+        silent rpm -Uvh http://rpms.litespeedtech.com/centos/litespeed-repo-1.1-1.el7.noarch.rpm
+    fi    
     silent /usr/bin/yum ${OPTIONAL} openlitespeed -y
     ENCRYPT_PASS=$(${OLSDIR}/admin/fcgi-bin/admin_php* -q ${OLSDIR}/admin/misc/htpasswd.php ${ADMIN_PASS})
     echo "admin:${ENCRYPT_PASS}" > ${OLSDIR}/admin/conf/htpasswd
@@ -612,10 +620,14 @@ ubuntu_install_nginx(){
         echoY "Remove existing nginx" 
         rm_old_pkg nginx 
         KILL_PROCESS nginx
-    fi     
+    fi
     echo "deb http://nginx.org/packages/ubuntu `lsb_release -cs` nginx" \
         | sudo tee /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
     curl -fsSL https://nginx.org/keys/nginx_signing.key | sudo apt-key add - >/dev/null 2>&1
+    grep arch /etc/apt/sources.list.d/nginx.list >/dev/null 2>&1
+    if [ ${?} = 1 ]; then
+        sed -i 's/deb/deb [arch=amd64]/g' /etc/apt/sources.list.d/nginx.list
+    fi
     apt-get update >/dev/null 2>&1
     apt install nginx -y >/dev/null 2>&1
     systemctl start nginx
@@ -688,8 +700,10 @@ ubuntu_install_caddy(){
         echo 'Caddy already exist, skip!'
     else
         echoG 'Install caddy Web Server'
-        curl -s https://getcaddy.com | bash -s personal > /dev/null 2>&1
-        SERVERV=$(caddy -version | awk '{print substr ($2,2)}')
+        echo "deb [trusted=yes] https://apt.fury.io/caddy/ /" | sudo tee -a /etc/apt/sources.list.d/caddy-fury.list > /dev/null 2>&1
+        sudo apt update > /dev/null 2>&1
+        sudo apt install caddy -y > /dev/null 2>&1
+        SERVERV=$(caddy version | awk '{print $1}')
         echoG "Version: caddy ${SERVERV}" 
         echo "Version: caddy ${SERVERV}" >> ${SERVERACCESS}    
     fi    
@@ -698,10 +712,18 @@ ubuntu_install_caddy(){
 centos_install_caddy(){
     if [ -e /usr/bin/caddy ]; then 
         echo 'Caddy already exist, skip!'
-    else    
+    else
         echoG 'Install caddy Web Server'
-        yum install caddy -y > /dev/null 2>&1
-        SERVERV=$(caddy -version | awk '{print $2}')
+        if [ ${OSVER} = 8 ]; then
+            dnf install 'dnf-command(copr)' -y > /dev/null 2>&1
+            dnf copr enable @caddy/caddy
+            dnf install caddy -y > /dev/null 2>&1
+        else
+            yum install yum-plugin-copr -y > /dev/null 2>&1
+            yum copr enable @caddy/caddy
+            yum install caddy -y > /dev/null 2>&1
+        fi
+        SERVERV=$(caddy version | awk '{print $1}')
         echoG "Version: caddy ${SERVERV}" 
         echo "Version: caddy ${SERVERV}" >> ${SERVERACCESS}  
     fi   
@@ -742,7 +764,9 @@ ubuntu_install_php(){
     sed -i -e 's/extension=pdo_dblib.so/;extension=pdo_dblib.so/' \
         /usr/local/lsws/lsphp${PHP_P}${PHP_S}/etc/php/${PHP_P}.${PHP_S}/mods-available/pdo_dblib.ini
     sed -i -e 's/extension=shmop.so/;extension=shmop.so/' /etc/php/${PHP_P}.${PHP_S}/fpm/conf.d/20-shmop.ini
-    sed -i -e 's/extension=wddx.so/;extension=wddx.so/' /etc/php/${PHP_P}.${PHP_S}/fpm/conf.d/20-wddx.ini
+    if [ ${OSNAMEVER} != 'UBUNTU20' ]; then
+        sed -i -e 's/extension=wddx.so/;extension=wddx.so/' /etc/php/${PHP_P}.${PHP_S}/fpm/conf.d/20-wddx.ini
+    fi    
     NEWKEY='listen.backlog = 4096'
     line_change 'listen.backlog' ${FPMCONF} "${NEWKEY}"
     #TODO: FETCH SAME PHP INI
@@ -759,7 +783,6 @@ centos_install_php(){
     done
     sed -i -e 's/extension=bz2/;extension=bz2/' /etc/php.d/20-bz2.ini
     sed -i -e 's/extension=pdo_sqlite/;extension=pdo_sqlite/' /etc/php.d/30-pdo_sqlite.ini
-    #sed -i -e 's/extension=shmop/;extension=shmop/' /etc/php.d/20-shmop.ini
     sed -i -e 's/extension=sqlite3/;extension=sqlite3/' /etc/php.d/20-sqlite3.ini
     sed -i -e 's/extension=wddx/;extension=wddx/' /etc/php.d/30-wddx.ini  
     
@@ -779,7 +802,6 @@ centos_install_php(){
 
 install_target(){
 ### Install WordPress + Cache
-    ### WP CLI
     if [ -e /usr/local/bin/wp ]; then 
         echoG 'WP CLI already exist'
     else    
@@ -1068,7 +1090,7 @@ centos_setup_ols(){
 ubuntu_setup_caddy(){  
     echoG 'Setting Caddy Config' 
     cd ${SCRIPTPATH}/
-    CADDY_BIN='/usr/local/bin/caddy'
+    CADDY_BIN='/usr/bin/caddy'
     setcap 'cap_net_bind_service=+ep' ${CADDY_BIN}
     mkdir -p ${CADDIR}
     backup_old ${CADDIR}/Caddyfile
@@ -1077,7 +1099,7 @@ ubuntu_setup_caddy(){
     cp ../../webservers/caddy/conf/caddy.service /etc/systemd/system/
     sed -i "s/example.com/${DOMAIN_NAME}/g" ${CADDIR}/Caddyfile
     sed -i "s/www-data/${USER}/g" /etc/systemd/system/caddy.service
-    sed -i "s|/usr/local/bin/caddy|${CADDY_BIN}|g" /etc/systemd/system/caddy.service
+    sed -i "s|/usr/bin/caddy|${CADDY_BIN}|g" /etc/systemd/system/caddy.service
     change_owner ${CADDIR}
     systemctl daemon-reload    
 }
