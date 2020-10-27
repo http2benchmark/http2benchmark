@@ -89,7 +89,7 @@ check_os()
             OSNAMEVER=UBUNTU18
             OSVER=bionic
         elif [ ${UBUNTU_V} = 20 ] ; then
-            OSNAMEVER=UBUNTU18
+            OSNAMEVER=UBUNTU20
             OSVER=bionic            
         fi
     elif [ -f /etc/debian_version ] ; then

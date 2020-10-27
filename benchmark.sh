@@ -596,19 +596,15 @@ parse_log() {
         for TOOL in ${TOOL_LIST}; do
             for TARGET in ${TARGET_LIST}; do
                 noext_target ${TARGET}
-		BENCHMARKLOG="benchmark_${TOOL}.log"
+		        BENCHMARKLOG="benchmark_${TOOL}.log"
                 if [[ ${TOOL} != h2load* ]]; then
                     PARSE_CONCURRENT_STREAMS='N/A'
                 else
                     PARSE_CONCURRENT_STREAMS=${CONCURRENT_STREAMS}
                 fi
-                if [ -f "${BENDATE}/${SERVER}/${FILENAME}-${BENCHMARKLOG}" ]; then
-                    ${CLIENTTOOL}/parse.sh ${TOOL} "https://${TARGET_DOMAIN}/${TARGET}" ${BENDATE} \
-                    "${SERVER}/${FILENAME}-${BENCHMARKLOG}" "${SERVER}-${TARGET}" ${SERVER} ${SERVER_VERSION} \
-                    ${ROUNDNUM} ${PARSE_CONCURRENT_STREAMS}
-                else
-                    echoR 'No result, skip!'
-                fi    
+                ${CLIENTTOOL}/parse.sh ${TOOL} "https://${TARGET_DOMAIN}/${TARGET}" ${BENDATE} \
+                "${SERVER}/${FILENAME}-${BENCHMARKLOG}" "${SERVER}-${TARGET}" ${SERVER} ${SERVER_VERSION} \
+                ${ROUNDNUM} ${PARSE_CONCURRENT_STREAMS}
             done
         done
     done
