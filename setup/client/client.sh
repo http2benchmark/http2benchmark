@@ -110,16 +110,16 @@ check_os()
         fi
     fi
     if [ "${OSNAMEVER}" = "" ] ; then
-        echoR "Sorry, currently script only supports Centos(6-7), Debian(7-10) and Ubuntu(14,16,18,20)."
+        echoR "Sorry, currently script only supports Centos(6-8), Debian(7-10) and Ubuntu(14,16,18,20)."
         exit 1
     else
         if [ "${OSNAME}" = "centos" ] ; then
             echoG "Current platform is ${OSNAME} ${OSVER}"
-            if [ ${OSVER} = 8 ]; then
-                echoR "Sorry, currently script only supports Centos(6-7), exit!!" 
-                exit 1
+            #if [ ${OSVER} = 8 ]; then
+            #    echoR "Sorry, currently script only supports Centos(6-7), exit!!" 
+            #    exit 1
                 ### Many package/repo are not ready for it.
-            fi    
+            #fi    
         else
             export DEBIAN_FRONTEND=noninteractive
             echoG "Current platform is ${OSNAMEVER} ${OSNAME} ${OSVER}."
@@ -245,7 +245,10 @@ centos_install_h2load(){
         echoG 'H2Load already installed'  
     else      
         echoG 'Installing h2load'
-        silent yum install nghttp2 -y 
+        silent yum install nghttp2 -y
+        if [ ${OSVER} = 8 ]; then
+            dnf --enablerepo=PowerTools install nghttp2 -y >/dev/null 2>&1
+        fi
         [[ -e /usr/bin/h2load ]] && echoG 'Install H2Load Success' || echoR 'Install H2Load Failed' 
     fi    
 }
